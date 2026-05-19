@@ -1,0 +1,30 @@
+# serial-gateway.yaml
+gateway:
+  http_port: 8080
+
+serial_defaults:
+  baudrate: 115200
+  timeout: 5s
+  bytesize: 8
+  parity: "N"
+  stopbits: 1
+  write_timeout: 10s
+
+ring_buffer:
+  max_lines: 500
+  max_bytes: 65536
+
+ssh:
+  base_port: 2200
+  auth:
+    type: "password"
+    password: "serial"
+
+reconnect:
+  initial_interval: 1s
+  max_interval: 30s
+  discard_input_on_disconnect: true
+
+ports:
+  - device: "COM3"
+    baudrate: 115200
