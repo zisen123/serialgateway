@@ -1,2 +1,3 @@
 *.exe
-serial-gateway
+/serial-gateway.exe
+/serial-gateway
