@@ -1,0 +1,257 @@
+package serial
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"log"
+	"strings"
+	"sync"
+	"time"
+
+	"go.bug.st/serial"
+
+	"github.com/yicongwu/serialgateway/internal/config"
+)
+
+type WriteRequest struct {
+	Data []byte
+	Done chan error
+}
+
+type SerialSession struct {
+	device   string
+	baudrate int
+	cfg      *config.Config
+
+	mu        sync.Mutex
+	port      serial.Port
+	connected bool
+
+	writeCh     chan WriteRequest
+	subscribers map[chan string]struct{}
+	subMu       sync.RWMutex
+
+	ringBuffer *RingBuffer
+	seqCounter int
+
+	stopCh chan struct{}
+}
+
+func NewSerialSession(device string, cfg *config.Config) *SerialSession {
+	baudrate := cfg.SerialDefaults.Baudrate
+	for _, p := range cfg.Ports {
+		if p.Device == device && p.Baudrate != 0 {
+			baudrate = p.Baudrate
+		}
+	}
+	return &SerialSession{
+		device:      device,
+		baudrate:    baudrate,
+		cfg:         cfg,
+		writeCh:     make(chan WriteRequest, 64),
+		subscribers: make(map[chan string]struct{}),
+		ringBuffer:  NewRingBuffer(cfg.RingBuffer.MaxLines, cfg.RingBuffer.MaxBytes),
+		stopCh:      make(chan struct{}),
+	}
+}
+
+func (s *SerialSession) Device() string                { return s.device }
+func (s *SerialSession) WriteChannel() chan WriteRequest { return s.writeCh }
+func (s *SerialSession) RingBuffer() *RingBuffer         { return s.ringBuffer }
+func (s *SerialSession) Baudrate() int                   { return s.baudrate }
+
+func (s *SerialSession) Open() error {
+	s.mu.Lock()
+	if s.connected {
+		s.mu.Unlock()
+		return nil
+	}
+	mode := &serial.Mode{
+		BaudRate: s.baudrate,
+		DataBits: s.cfg.SerialDefaults.ByteSize,
+		Parity:   serial.NoParity,
+		StopBits: serial.OneStopBit,
+	}
+	switch s.cfg.SerialDefaults.Parity {
+	case "E":
+		mode.Parity = serial.EvenParity
+	case "O":
+		mode.Parity = serial.OddParity
+	case "M":
+		mode.Parity = serial.MarkParity
+	case "S":
+		mode.Parity = serial.SpaceParity
+	}
+	switch s.cfg.SerialDefaults.StopBits {
+	case 1.5:
+		mode.StopBits = serial.OnePointFiveStopBits
+	case 2:
+		mode.StopBits = serial.TwoStopBits
+	}
+	p, err := serial.Open(s.device, mode)
+	if err != nil {
+		s.mu.Unlock()
+		return fmt.Errorf("open %s: %w", s.device, err)
+	}
+	s.port = p
+	s.connected = true
+	s.mu.Unlock()
+	go s.readLoop()
+	go s.writeLoop()
+	return nil
+}
+
+func (s *SerialSession) Close() {
+	s.mu.Lock()
+	if s.port != nil {
+		s.port.Close()
+	}
+	s.connected = false
+	s.mu.Unlock()
+	select {
+	case <-s.stopCh:
+	default:
+		close(s.stopCh)
+	}
+}
+
+func (s *SerialSession) IsConnected() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.connected
+}
+
+func (s *SerialSession) Subscribe() chan string {
+	ch := make(chan string, 64)
+	s.subMu.Lock()
+	s.subscribers[ch] = struct{}{}
+	s.subMu.Unlock()
+	return ch
+}
+
+func (s *SerialSession) Unsubscribe(ch chan string) {
+	s.subMu.Lock()
+	delete(s.subscribers, ch)
+	s.subMu.Unlock()
+	close(ch)
+}
+
+func (s *SerialSession) readLoop() {
+	buf := make([]byte, 1024)
+	lineBuf := []byte{}
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		default:
+		}
+		s.mu.Lock()
+		p := s.port
+		s.mu.Unlock()
+		if p == nil {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		n, err := p.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				s.broadcast("[serial disconnected - waiting for reconnect...]")
+				s.handleDisconnect()
+				continue
+			}
+			log.Printf("serial read error on %s: %v", s.device, err)
+			s.broadcast(fmt.Sprintf("[serial error: %v]", err))
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		if n == 0 {
+			continue
+		}
+		lineBuf = append(lineBuf, buf[:n]...)
+		for {
+			idx := bytes.IndexByte(lineBuf, '\n')
+			if idx < 0 {
+				break
+			}
+			line := string(lineBuf[:idx])
+			lineBuf = lineBuf[idx+1:]
+			line = strings.TrimRight(line, "\r")
+			s.mu.Lock()
+			s.seqCounter++
+			seq := s.seqCounter
+			s.mu.Unlock()
+			entry := Entry{
+				TS:    time.Now(),
+				Seq:   seq,
+				Line:  line,
+				Bytes: len(line),
+			}
+			s.ringBuffer.Append(entry)
+			s.broadcast(line)
+		}
+	}
+}
+
+func (s *SerialSession) writeLoop() {
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case req := <-s.writeCh:
+			s.mu.Lock()
+			p := s.port
+			s.mu.Unlock()
+			if p == nil {
+				if s.cfg.Reconnect.DiscardInputOnDisconnect {
+					req.Done <- fmt.Errorf("serial disconnected, input discarded")
+				}
+				continue
+			}
+			_, err := p.Write(req.Data)
+			req.Done <- err
+		}
+	}
+}
+
+func (s *SerialSession) broadcast(msg string) {
+	s.subMu.RLock()
+	defer s.subMu.RUnlock()
+	for ch := range s.subscribers {
+		select {
+		case ch <- msg:
+		default:
+		}
+	}
+}
+
+func (s *SerialSession) handleDisconnect() {
+	s.mu.Lock()
+	s.port.Close()
+	s.port = nil
+	s.connected = false
+	s.mu.Unlock()
+	go s.reconnectLoop()
+}
+
+func (s *SerialSession) reconnectLoop() {
+	interval := s.cfg.Reconnect.InitialInterval
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		default:
+		}
+		time.Sleep(interval)
+		err := s.Open()
+		if err == nil {
+			s.broadcast("[serial reconnected]")
+			return
+		}
+		log.Printf("reconnect attempt for %s failed: %v", s.device, err)
+		interval *= 2
+		if interval > s.cfg.Reconnect.MaxInterval {
+			interval = s.cfg.Reconnect.MaxInterval
+		}
+	}
+}
