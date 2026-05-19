@@ -139,6 +139,8 @@ func (gw *Gateway) handleMappingDetail(w http.ResponseWriter, r *http.Request) {
 			gw.handleTail(w, r, srv)
 		case "log":
 			gw.handleLog(w, r, srv)
+		case "write":
+			gw.handleWrite(w, r, srv)
 		default:
 			writeJSON(w, 404, map[string]string{"error": "unknown sub-path"})
 		}
@@ -216,5 +218,63 @@ func (gw *Gateway) handleLog(w http.ResponseWriter, r *http.Request, srv *ssh.SS
 		"format":  "text",
 		"content": content,
 		"bytes":   len(content),
+	})
+}
+
+func (gw *Gateway) handleWrite(w http.ResponseWriter, r *http.Request, srv *ssh.SSHServer) {
+	if r.Method != "POST" {
+		writeJSON(w, 405, map[string]string{"error": "method not allowed, use POST"})
+		return
+	}
+	var req struct {
+		Data string `json:"data"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, 400, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.Data == "" {
+		writeJSON(w, 400, map[string]string{"error": "data is required"})
+		return
+	}
+
+	sess := srv.Session()
+	if !sess.IsConnected() {
+		if err := sess.Open(); err != nil {
+			writeJSON(w, 500, map[string]string{"error": fmt.Sprintf("serial open failed: %v", err)})
+			return
+		}
+	}
+
+	writeReq := serial.WriteRequest{
+		Data: []byte(req.Data),
+		Done: make(chan error, 1),
+	}
+	sess.WriteChannel() <- writeReq
+
+	var writeErr error
+	select {
+	case writeErr = <-writeReq.Done:
+	case <-time.After(gw.cfg.SerialDefaults.WriteTimeout):
+		writeErr = fmt.Errorf("write timeout")
+	}
+
+	if writeErr != nil {
+		writeJSON(w, 500, map[string]string{"error": writeErr.Error()})
+		return
+	}
+
+	time.Sleep(500 * time.Millisecond)
+
+	entries := sess.RingBuffer().Tail(50)
+	var responseLines []string
+	for _, e := range entries {
+		responseLines = append(responseLines, e.Line)
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"device":  srv.Device(),
+		"sent":    req.Data,
+		"output":  strings.Join(responseLines, "\n"),
+		"entries": len(entries),
 	})
 }
