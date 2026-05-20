@@ -3,7 +3,6 @@ package serial
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"strings"
 	"sync"
@@ -155,14 +154,9 @@ func (s *SerialSession) readLoop() {
 		}
 		n, err := p.Read(buf)
 		if err != nil {
-			if err == io.EOF {
-				s.broadcast("[serial disconnected - waiting for reconnect...]\n")
-				s.handleDisconnect()
-				continue
-			}
 			log.Printf("serial read error on %s: %v", s.device, err)
-			s.broadcast(fmt.Sprintf("[serial error: %v]\n", err))
-			time.Sleep(500 * time.Millisecond)
+			s.broadcast("[serial disconnected - waiting for reconnect...]\n")
+			s.handleDisconnect()
 			continue
 		}
 		if n == 0 {
@@ -230,6 +224,12 @@ func (s *SerialSession) handleDisconnect() {
 	s.port.Close()
 	s.port = nil
 	s.connected = false
+	select {
+	case <-s.stopCh:
+	default:
+		close(s.stopCh)
+	}
+	s.stopCh = make(chan struct{})
 	s.mu.Unlock()
 	go s.reconnectLoop()
 }
@@ -249,9 +249,5 @@ func (s *SerialSession) reconnectLoop() {
 			return
 		}
 		log.Printf("reconnect attempt for %s failed: %v", s.device, err)
-		interval *= 2
-		if interval > s.cfg.Reconnect.MaxInterval {
-			interval = s.cfg.Reconnect.MaxInterval
-		}
 	}
 }
