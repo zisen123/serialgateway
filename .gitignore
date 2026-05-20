@@ -1,3 +1,4 @@
 *.exe
 /serial-gateway.exe
 /serial-gateway
+host_key
