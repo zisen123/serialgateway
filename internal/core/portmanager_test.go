@@ -3,7 +3,7 @@ package core
 import (
 	"testing"
 
-	"github.com/yicongwu/serialgateway/internal/config"
+	"github.com/zisen123/serialgateway/internal/config"
 )
 
 func TestNewPortManager(t *testing.T) {

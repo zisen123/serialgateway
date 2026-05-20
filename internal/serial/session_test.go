@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yicongwu/serialgateway/internal/config"
+	"github.com/zisen123/serialgateway/internal/config"
 )
 
 func TestSessionOpenClose(t *testing.T) {

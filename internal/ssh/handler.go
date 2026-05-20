@@ -8,7 +8,7 @@ import (
 
 	gliderssh "github.com/gliderlabs/ssh"
 
-	"github.com/yicongwu/serialgateway/internal/serial"
+	"github.com/zisen123/serialgateway/internal/serial"
 )
 
 func (s *SSHServer) handleSession(sess gliderssh.Session) {

@@ -26,7 +26,7 @@ go build -o serial-gateway.exe ./cmd/serial-gateway/
 
 ```yaml
 gateway:
-  http_port: 8080
+  http_port: 18080
 
 serial_defaults:
   baudrate: 115200
@@ -73,7 +73,7 @@ ssh -p 2203 serial@localhost
 ### 发送指令示例
 
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/mappings/COM3/write" `
+Invoke-RestMethod -Uri "http://localhost:18080/api/mappings/COM3/write" `
   -Method POST `
   -Body '{"data":"cat /etc/hostname\n"}' `
   -ContentType "application/json"

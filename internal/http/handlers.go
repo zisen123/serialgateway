@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yicongwu/serialgateway/internal/config"
-	"github.com/yicongwu/serialgateway/internal/serial"
-	"github.com/yicongwu/serialgateway/internal/ssh"
+	"github.com/zisen123/serialgateway/internal/config"
+	"github.com/zisen123/serialgateway/internal/serial"
+	"github.com/zisen123/serialgateway/internal/ssh"
 )
 
 func writeJSON(w http.ResponseWriter, code int, data interface{}) {

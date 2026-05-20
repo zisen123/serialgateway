@@ -10,7 +10,7 @@ import (
 
 	"go.bug.st/serial"
 
-	"github.com/yicongwu/serialgateway/internal/config"
+	"github.com/zisen123/serialgateway/internal/config"
 )
 
 type WriteRequest struct {

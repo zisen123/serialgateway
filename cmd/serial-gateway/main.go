@@ -7,9 +7,9 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/yicongwu/serialgateway/internal/config"
-	"github.com/yicongwu/serialgateway/internal/core"
-	sgwhttp "github.com/yicongwu/serialgateway/internal/http"
+	"github.com/zisen123/serialgateway/internal/config"
+	"github.com/zisen123/serialgateway/internal/core"
+	sgwhttp "github.com/zisen123/serialgateway/internal/http"
 )
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 	gw := sgwhttp.NewGatewayWithManager(cfg, pm)
 	go gw.StartHTTP()
 
-	log.Printf("SerialGateway started — HTTP :%d, SSH base port %d", cfg.Gateway.HTTPPort, cfg.SSH.BasePort)
+	log.Printf("SerialGateway started - HTTP :%d, SSH base port %d", cfg.Gateway.HTTPPort, cfg.SSH.BasePort)
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)

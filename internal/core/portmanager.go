@@ -5,8 +5,8 @@ import (
 	"log"
 	"sync"
 
-	"github.com/yicongwu/serialgateway/internal/config"
-	"github.com/yicongwu/serialgateway/internal/ssh"
+	"github.com/zisen123/serialgateway/internal/config"
+	"github.com/zisen123/serialgateway/internal/ssh"
 )
 
 type PortManager struct {

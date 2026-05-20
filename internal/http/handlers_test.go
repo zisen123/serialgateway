@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/yicongwu/serialgateway/internal/config"
-	"github.com/yicongwu/serialgateway/internal/core"
+	"github.com/zisen123/serialgateway/internal/config"
+	"github.com/zisen123/serialgateway/internal/core"
 )
 
 func TestGetPorts(t *testing.T) {

@@ -1,6 +1,6 @@
 # serial-gateway.yaml
 gateway:
-  http_port: 8080
+  http_port: 18080
 
 serial_defaults:
   baudrate: 115200

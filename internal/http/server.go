@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/yicongwu/serialgateway/internal/config"
-	"github.com/yicongwu/serialgateway/internal/core"
+	"github.com/zisen123/serialgateway/internal/config"
+	"github.com/zisen123/serialgateway/internal/core"
 )
 
 type Gateway struct {

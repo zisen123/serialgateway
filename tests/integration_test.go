@@ -12,10 +12,10 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/yicongwu/serialgateway/internal/config"
-	"github.com/yicongwu/serialgateway/internal/core"
-	sgwhttp "github.com/yicongwu/serialgateway/internal/http"
-	"github.com/yicongwu/serialgateway/tests/vserial"
+	"github.com/zisen123/serialgateway/internal/config"
+	"github.com/zisen123/serialgateway/internal/core"
+	sgwhttp "github.com/zisen123/serialgateway/internal/http"
+	"github.com/zisen123/serialgateway/tests/vserial"
 )
 
 func setupGateway(t *testing.T, httpPort, sshBase int) (*core.PortManager, *sgwhttp.Gateway) {
@@ -114,7 +114,7 @@ func TestSSHConnectionToVirtualPort(t *testing.T) {
 	t.Logf("SSH output:\n%s", output)
 
 	if !strings.Contains(output, "log line") {
-		t.Error("expected 'log line' in output â€” device heartbeat not received")
+		t.Error("expected 'log line' in output â€?device heartbeat not received")
 	}
 
 	if !strings.Contains(output, "Available commands") {
