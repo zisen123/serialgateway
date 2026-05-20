@@ -18,7 +18,7 @@ ssh:
   base_port: 2200
   auth:
     type: "password"
-    password: "serial"
+    password: "cvitek"
 
 reconnect:
   initial_interval: 1s
