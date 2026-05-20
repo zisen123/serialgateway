@@ -137,11 +137,12 @@ func (s *SerialSession) Unsubscribe(ch chan string) {
 }
 
 func (s *SerialSession) readLoop() {
+	stopCh := s.stopCh
 	buf := make([]byte, 1024)
 	lineBuf := []byte{}
 	for {
 		select {
-		case <-s.stopCh:
+		case <-stopCh:
 			return
 		default:
 		}
@@ -157,7 +158,7 @@ func (s *SerialSession) readLoop() {
 			log.Printf("serial read error on %s: %v", s.device, err)
 			s.broadcast("[serial disconnected - waiting for reconnect...]\n")
 			s.handleDisconnect()
-			continue
+			return
 		}
 		if n == 0 {
 			continue
@@ -188,9 +189,10 @@ func (s *SerialSession) readLoop() {
 }
 
 func (s *SerialSession) writeLoop() {
+	stopCh := s.stopCh
 	for {
 		select {
-		case <-s.stopCh:
+		case <-stopCh:
 			return
 		case req := <-s.writeCh:
 			s.mu.Lock()
@@ -221,9 +223,11 @@ func (s *SerialSession) broadcast(msg string) {
 
 func (s *SerialSession) handleDisconnect() {
 	s.mu.Lock()
-	s.port.Close()
-	s.port = nil
-	s.connected = false
+	if s.port != nil {
+		s.port.Close()
+		s.port = nil
+		s.connected = false
+	}
 	select {
 	case <-s.stopCh:
 	default:
@@ -235,10 +239,11 @@ func (s *SerialSession) handleDisconnect() {
 }
 
 func (s *SerialSession) reconnectLoop() {
+	stopCh := s.stopCh
 	interval := s.cfg.Reconnect.InitialInterval
 	for {
 		select {
-		case <-s.stopCh:
+		case <-stopCh:
 			return
 		default:
 		}
