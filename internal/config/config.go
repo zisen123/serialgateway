@@ -100,10 +100,10 @@ func applyDefaults(cfg *Config) {
 		cfg.SerialDefaults.WriteTimeout = 10 * time.Second
 	}
 	if cfg.RingBuffer.MaxLines == 0 {
-		cfg.RingBuffer.MaxLines = 500
+		cfg.RingBuffer.MaxLines = 100000
 	}
 	if cfg.RingBuffer.MaxBytes == 0 {
-		cfg.RingBuffer.MaxBytes = 65536
+		cfg.RingBuffer.MaxBytes = 10485760
 	}
 	if cfg.SSH.BasePort == 0 {
 		cfg.SSH.BasePort = 2200

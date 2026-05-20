@@ -11,8 +11,8 @@ serial_defaults:
   write_timeout: 10s
 
 ring_buffer:
-  max_lines: 500
-  max_bytes: 65536
+  max_lines: 100000
+  max_bytes: 10485760
 
 ssh:
   base_port: 2200

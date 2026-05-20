@@ -20,8 +20,8 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.SSH.BasePort != 2200 {
 		t.Errorf("expected default SSH base port 2200, got %d", cfg.SSH.BasePort)
 	}
-	if cfg.RingBuffer.MaxLines != 500 {
-		t.Errorf("expected default ring buffer max lines 500, got %d", cfg.RingBuffer.MaxLines)
+	if cfg.RingBuffer.MaxLines != 100000 {
+		t.Errorf("expected default ring buffer max lines 100000, got %d", cfg.RingBuffer.MaxLines)
 	}
 	if cfg.Reconnect.MaxInterval != 30*time.Second {
 		t.Errorf("expected default reconnect max interval 30s, got %v", cfg.Reconnect.MaxInterval)
