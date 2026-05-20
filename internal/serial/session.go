@@ -156,18 +156,19 @@ func (s *SerialSession) readLoop() {
 		n, err := p.Read(buf)
 		if err != nil {
 			if err == io.EOF {
-				s.broadcast("[serial disconnected - waiting for reconnect...]")
+				s.broadcast("[serial disconnected - waiting for reconnect...]\n")
 				s.handleDisconnect()
 				continue
 			}
 			log.Printf("serial read error on %s: %v", s.device, err)
-			s.broadcast(fmt.Sprintf("[serial error: %v]", err))
+			s.broadcast(fmt.Sprintf("[serial error: %v]\n", err))
 			time.Sleep(500 * time.Millisecond)
 			continue
 		}
 		if n == 0 {
 			continue
 		}
+		s.broadcast(string(buf[:n]))
 		lineBuf = append(lineBuf, buf[:n]...)
 		for {
 			idx := bytes.IndexByte(lineBuf, '\n')
@@ -188,7 +189,6 @@ func (s *SerialSession) readLoop() {
 				Bytes: len(line),
 			}
 			s.ringBuffer.Append(entry)
-			s.broadcast(line)
 		}
 	}
 }
@@ -245,7 +245,7 @@ func (s *SerialSession) reconnectLoop() {
 		time.Sleep(interval)
 		err := s.Open()
 		if err == nil {
-			s.broadcast("[serial reconnected]")
+			s.broadcast("[serial reconnected]\n")
 			return
 		}
 		log.Printf("reconnect attempt for %s failed: %v", s.device, err)

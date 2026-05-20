@@ -33,7 +33,7 @@ func (s *SSHServer) handleSession(sess gliderssh.Session) {
 	done := make(chan struct{})
 	go func() {
 		for msg := range sub {
-			fmt.Fprintf(sess, "%s\n", msg)
+			fmt.Fprintf(sess, "%s", msg)
 		}
 		close(done)
 	}()
