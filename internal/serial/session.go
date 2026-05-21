@@ -105,6 +105,7 @@ func (s *SerialSession) Close() {
 	s.mu.Lock()
 	if s.port != nil {
 		s.port.Close()
+		s.port = nil
 	}
 	s.connected = false
 	s.mu.Unlock()
@@ -223,11 +224,13 @@ func (s *SerialSession) broadcast(msg string) {
 
 func (s *SerialSession) handleDisconnect() {
 	s.mu.Lock()
-	if s.port != nil {
-		s.port.Close()
-		s.port = nil
-		s.connected = false
+	if s.port == nil {
+		s.mu.Unlock()
+		return
 	}
+	s.port.Close()
+	s.port = nil
+	s.connected = false
 	select {
 	case <-s.stopCh:
 	default:
