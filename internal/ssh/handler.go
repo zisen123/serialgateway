@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"time"
 
 	gliderssh "github.com/gliderlabs/ssh"
@@ -33,6 +34,9 @@ func (s *SSHServer) handleSession(sess gliderssh.Session) {
 	done := make(chan struct{})
 	go func() {
 		for msg := range sub {
+			msg = strings.ReplaceAll(msg, "\r\n", "\n")
+			msg = strings.ReplaceAll(msg, "\r", "")
+			msg = strings.ReplaceAll(msg, "\n", "\r\n")
 			fmt.Fprintf(sess, "%s", msg)
 		}
 		close(done)
