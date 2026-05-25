@@ -179,12 +179,13 @@ func (gw *Gateway) handleTail(w http.ResponseWriter, r *http.Request, srv *ssh.S
 		}
 	}
 	entries := srv.Session().RingBuffer().Tail(lines)
-	writeJSON(w, 200, map[string]interface{}{
-		"device": srv.Device(),
-		"lines":  lines,
-		"count":  len(entries),
-		"items":  entries,
-	})
+	var textLines []string
+	for _, e := range entries {
+		textLines = append(textLines, e.Line)
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(200)
+	w.Write([]byte(strings.Join(textLines, "\n")))
 }
 
 func (gw *Gateway) handleLog(w http.ResponseWriter, r *http.Request, srv *ssh.SSHServer) {
@@ -272,9 +273,7 @@ func (gw *Gateway) handleWrite(w http.ResponseWriter, r *http.Request, srv *ssh.
 		responseLines = append(responseLines, e.Line)
 	}
 	writeJSON(w, 200, map[string]interface{}{
-		"device":  srv.Device(),
-		"sent":    req.Data,
-		"output":  strings.Join(responseLines, "\n"),
-		"entries": len(entries),
+		"sent":   req.Data,
+		"output": strings.Join(responseLines, "\n"),
 	})
 }
