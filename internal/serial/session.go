@@ -174,6 +174,9 @@ func (s *SerialSession) readLoop() {
 			line := string(lineBuf[:idx])
 			lineBuf = lineBuf[idx+1:]
 			line = strings.TrimRight(line, "\r")
+			if i := strings.LastIndex(line, "\r"); i >= 0 {
+				line = line[i+1:]
+			}
 			s.mu.Lock()
 			s.seqCounter++
 			seq := s.seqCounter
