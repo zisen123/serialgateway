@@ -35,7 +35,6 @@ func (s *SSHServer) handleSession(sess gliderssh.Session) {
 	go func() {
 		for msg := range sub {
 			msg = strings.ReplaceAll(msg, "\r\n", "\n")
-			msg = strings.ReplaceAll(msg, "\r", "")
 			msg = strings.ReplaceAll(msg, "\n", "\r\n")
 			fmt.Fprintf(sess, "%s", msg)
 		}
