@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/zisen123/serialgateway/internal/config"
 )
+
+var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]|\x1b[^[A-Za-z]?[A-Za-z]`)
 
 type WriteRequest struct {
 	Data []byte
@@ -177,6 +180,7 @@ func (s *SerialSession) readLoop() {
 			if i := strings.LastIndex(line, "\r"); i >= 0 {
 				line = line[i+1:]
 			}
+			line = ansiEscape.ReplaceAllString(line, "")
 			s.mu.Lock()
 			s.seqCounter++
 			seq := s.seqCounter
