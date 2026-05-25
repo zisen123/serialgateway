@@ -28,3 +28,5 @@ reconnect:
 ports:
   - device: "COM3"
     baudrate: 115200
+  - device: "COM25"
+    baudrate: 115200
