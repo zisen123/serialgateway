@@ -10,6 +10,7 @@ import (
 	"github.com/zisen123/serialgateway/internal/config"
 	"github.com/zisen123/serialgateway/internal/core"
 	sgwhttp "github.com/zisen123/serialgateway/internal/http"
+	"github.com/zisen123/serialgateway/internal/tunnel"
 )
 
 func main() {
@@ -31,6 +32,14 @@ func main() {
 		log.Printf("auto-start warning: %v", err)
 	}
 
+	var rt *tunnel.ReverseTunnel
+	if cfg.ReverseTunnel.Host != "" {
+		rt = tunnel.New(&cfg.ReverseTunnel)
+		rt.Start()
+		log.Printf("reverse tunnel started: %s:%d -> local:%d",
+			cfg.ReverseTunnel.Host, cfg.ReverseTunnel.RemotePort, cfg.ReverseTunnel.LocalPort)
+	}
+
 	gw := sgwhttp.NewGatewayWithManager(cfg, pm)
 	go gw.StartHTTP()
 
@@ -41,5 +50,8 @@ func main() {
 	<-sigCh
 
 	log.Println("shutting down...")
+	if rt != nil {
+		rt.Stop()
+	}
 	pm.Shutdown()
 }

@@ -18,12 +18,19 @@ ssh:
   base_port: 2200
   auth:
     type: "password"
-    password: "cvitek"
 
 reconnect:
   initial_interval: 1s
   max_interval: 30s
   discard_input_on_disconnect: true
+
+reverse_tunnel:
+  host: "172.25.4.7"
+  port: 22
+  user: "yicong.wu"
+  private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
+  remote_port: 18999
+  local_port: 18080
 
 ports:
   - device: "COM3"

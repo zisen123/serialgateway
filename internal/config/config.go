@@ -47,13 +47,24 @@ type PortConfig struct {
 	Baudrate int    `yaml:"baudrate" json:"baudrate"`
 }
 
+type ReverseTunnelConfig struct {
+	Host           string `yaml:"host"             json:"host"`
+	Port           int    `yaml:"port"             json:"port"`
+	User           string `yaml:"user"             json:"user"`
+	Password       string `yaml:"password"         json:"password"`
+	PrivateKeyFile string `yaml:"private_key_file" json:"private_key_file"`
+	RemotePort     int    `yaml:"remote_port"      json:"remote_port"`
+	LocalPort      int    `yaml:"local_port"       json:"local_port"`
+}
+
 type Config struct {
-	Gateway        GatewayConfig    `yaml:"gateway" json:"gateway"`
-	SerialDefaults SerialDefaults   `yaml:"serial_defaults" json:"serial_defaults"`
-	RingBuffer     RingBufferConfig `yaml:"ring_buffer" json:"ring_buffer"`
-	SSH            SSHConfig        `yaml:"ssh" json:"ssh"`
-	Reconnect      ReconnectConfig  `yaml:"reconnect" json:"reconnect"`
-	Ports          []PortConfig     `yaml:"ports" json:"ports"`
+	Gateway        GatewayConfig        `yaml:"gateway" json:"gateway"`
+	SerialDefaults SerialDefaults       `yaml:"serial_defaults" json:"serial_defaults"`
+	RingBuffer     RingBufferConfig     `yaml:"ring_buffer" json:"ring_buffer"`
+	SSH            SSHConfig            `yaml:"ssh" json:"ssh"`
+	Reconnect      ReconnectConfig      `yaml:"reconnect" json:"reconnect"`
+	ReverseTunnel  ReverseTunnelConfig  `yaml:"reverse_tunnel" json:"reverse_tunnel"`
+	Ports          []PortConfig         `yaml:"ports" json:"ports"`
 }
 
 func Load(path string) (*Config, error) {
@@ -111,13 +122,26 @@ func applyDefaults(cfg *Config) {
 	if cfg.SSH.Auth.Type == "" {
 		cfg.SSH.Auth.Type = "password"
 	}
-	if cfg.SSH.Auth.Password == "" {
-		cfg.SSH.Auth.Password = "serial"
-	}
+
 	if cfg.Reconnect.InitialInterval == 0 {
 		cfg.Reconnect.InitialInterval = 1 * time.Second
 	}
 	if cfg.Reconnect.MaxInterval == 0 {
 		cfg.Reconnect.MaxInterval = 30 * time.Second
+	}
+
+	if cfg.ReverseTunnel.Host != "" {
+		if cfg.ReverseTunnel.Port == 0 {
+			cfg.ReverseTunnel.Port = 22
+		}
+		if cfg.ReverseTunnel.User == "" {
+			cfg.ReverseTunnel.User = "root"
+		}
+		if cfg.ReverseTunnel.RemotePort == 0 {
+			cfg.ReverseTunnel.RemotePort = 18080
+		}
+		if cfg.ReverseTunnel.LocalPort == 0 {
+			cfg.ReverseTunnel.LocalPort = cfg.Gateway.HTTPPort
+		}
 	}
 }
