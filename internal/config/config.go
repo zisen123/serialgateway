@@ -12,12 +12,14 @@ type GatewayConfig struct {
 }
 
 type SerialDefaults struct {
-	Baudrate     int           `yaml:"baudrate" json:"baudrate"`
-	Timeout      time.Duration `yaml:"timeout" json:"timeout"`
-	ByteSize     int           `yaml:"bytesize" json:"bytesize"`
-	Parity       string        `yaml:"parity" json:"parity"`
-	StopBits     float64       `yaml:"stopbits" json:"stopbits"`
-	WriteTimeout time.Duration `yaml:"write_timeout" json:"write_timeout"`
+	Baudrate           int           `yaml:"baudrate" json:"baudrate"`
+	Timeout            time.Duration `yaml:"timeout" json:"timeout"`
+	ByteSize           int           `yaml:"bytesize" json:"bytesize"`
+	Parity             string        `yaml:"parity" json:"parity"`
+	StopBits           float64       `yaml:"stopbits" json:"stopbits"`
+	WriteTimeout       time.Duration `yaml:"write_timeout" json:"write_timeout"`
+	ExecSilenceTimeout time.Duration `yaml:"exec_silence_timeout" json:"exec_silence_timeout"`
+	ExecMaxDuration    time.Duration `yaml:"exec_max_duration" json:"exec_max_duration"`
 }
 
 type SSHAuth struct {
@@ -109,6 +111,12 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.SerialDefaults.WriteTimeout == 0 {
 		cfg.SerialDefaults.WriteTimeout = 10 * time.Second
+	}
+	if cfg.SerialDefaults.ExecSilenceTimeout == 0 {
+		cfg.SerialDefaults.ExecSilenceTimeout = 5 * time.Second
+	}
+	if cfg.SerialDefaults.ExecMaxDuration == 0 {
+		cfg.SerialDefaults.ExecMaxDuration = 30 * time.Second
 	}
 	if cfg.RingBuffer.MaxLines == 0 {
 		cfg.RingBuffer.MaxLines = 100000
