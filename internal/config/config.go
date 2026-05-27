@@ -57,6 +57,17 @@ type ReverseTunnelConfig struct {
 	LocalPort      int    `yaml:"local_port"       json:"local_port"`
 }
 
+type LoggingConfig struct {
+	Level      string `yaml:"level" json:"level"`
+	Format     string `yaml:"format" json:"format"`
+	Output     string `yaml:"output" json:"output"`
+	FilePath   string `yaml:"file_path" json:"file_path"`
+	MaxSizeMB  int    `yaml:"max_size_mb" json:"max_size_mb"`
+	MaxAgeDays int    `yaml:"max_age_days" json:"max_age_days"`
+	MaxBackups int    `yaml:"max_backups" json:"max_backups"`
+	Compress   bool   `yaml:"compress" json:"compress"`
+}
+
 type Config struct {
 	Gateway        GatewayConfig        `yaml:"gateway" json:"gateway"`
 	SerialDefaults SerialDefaults       `yaml:"serial_defaults" json:"serial_defaults"`
@@ -64,6 +75,7 @@ type Config struct {
 	SSH            SSHConfig            `yaml:"ssh" json:"ssh"`
 	Reconnect      ReconnectConfig      `yaml:"reconnect" json:"reconnect"`
 	ReverseTunnel  ReverseTunnelConfig  `yaml:"reverse_tunnel" json:"reverse_tunnel"`
+	Logging        LoggingConfig        `yaml:"logging" json:"logging"`
 	Ports          []PortConfig         `yaml:"ports" json:"ports"`
 }
 
@@ -143,5 +155,27 @@ func applyDefaults(cfg *Config) {
 		if cfg.ReverseTunnel.LocalPort == 0 {
 			cfg.ReverseTunnel.LocalPort = cfg.Gateway.HTTPPort
 		}
+	}
+
+	if cfg.Logging.Level == "" {
+		cfg.Logging.Level = "info"
+	}
+	if cfg.Logging.Format == "" {
+		cfg.Logging.Format = "text"
+	}
+	if cfg.Logging.Output == "" {
+		cfg.Logging.Output = "stdout"
+	}
+	if cfg.Logging.FilePath == "" {
+		cfg.Logging.FilePath = "gateway.log"
+	}
+	if cfg.Logging.MaxSizeMB == 0 {
+		cfg.Logging.MaxSizeMB = 100
+	}
+	if cfg.Logging.MaxAgeDays == 0 {
+		cfg.Logging.MaxAgeDays = 30
+	}
+	if cfg.Logging.MaxBackups == 0 {
+		cfg.Logging.MaxBackups = 7
 	}
 }

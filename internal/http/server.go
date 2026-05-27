@@ -2,7 +2,7 @@ package http
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/zisen123/serialgateway/internal/config"
@@ -10,14 +10,16 @@ import (
 )
 
 type Gateway struct {
-	cfg *config.Config
-	pm  *core.PortManager
+	cfg    *config.Config
+	pm     *core.PortManager
+	logger *slog.Logger
 }
 
-func NewGatewayWithManager(cfg *config.Config, pm *core.PortManager) *Gateway {
+func NewGatewayWithManager(cfg *config.Config, pm *core.PortManager, logger *slog.Logger) *Gateway {
 	return &Gateway{
-		cfg: cfg,
-		pm:  pm,
+		cfg:    cfg,
+		pm:     pm,
+		logger: logger,
 	}
 }
 
@@ -32,6 +34,6 @@ func (gw *Gateway) Handler() http.Handler {
 
 func (gw *Gateway) StartHTTP() {
 	addr := fmt.Sprintf(":%d", gw.cfg.Gateway.HTTPPort)
-	log.Printf("HTTP API listening on %s", addr)
+	gw.logger.Info("HTTP API listening", "addr", addr)
 	http.ListenAndServe(addr, gw.Handler())
 }

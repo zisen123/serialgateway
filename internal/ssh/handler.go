@@ -3,7 +3,7 @@ package ssh
 import (
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -13,17 +13,18 @@ import (
 )
 
 func (s *SSHServer) handleSession(sess gliderssh.Session) {
-	logf := func(format string, args ...interface{}) {
-		log.Printf("ssh:%s %s", s.device, fmt.Sprintf(format, args...))
+	logf := func(level slog.Level, msg string, args ...any) {
+		allArgs := append([]any{"remote_addr", sess.RemoteAddr().String()}, args...)
+		s.logger.Log(nil, level, msg, allArgs...)
 	}
-	logf("connected: %s", sess.RemoteAddr())
+	logf(slog.LevelInfo, "connected")
 
 	if !s.session.IsConnected() {
 		err := s.session.Open()
 		if err != nil {
 			fmt.Fprintf(sess, "[serial open failed: %v]\n", err)
 			sess.Close()
-			logf("serial open failed: %v", err)
+			logf(slog.LevelError, "serial open failed", "error", err)
 			return
 		}
 	}
@@ -47,7 +48,7 @@ func (s *SSHServer) handleSession(sess gliderssh.Session) {
 			n, err := sess.Read(buf)
 			if err != nil {
 				if err != io.EOF {
-					logf("read error: %v", err)
+					logf(slog.LevelWarn, "read error", "error", err)
 				}
 				return
 			}
@@ -68,5 +69,5 @@ func (s *SSHServer) handleSession(sess gliderssh.Session) {
 	}()
 
 	<-done
-	logf("disconnected: %s", sess.RemoteAddr())
+	logf(slog.LevelInfo, "disconnected")
 }

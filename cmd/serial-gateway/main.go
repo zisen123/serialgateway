@@ -3,13 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 
 	"github.com/zisen123/serialgateway/internal/config"
 	"github.com/zisen123/serialgateway/internal/core"
 	sgwhttp "github.com/zisen123/serialgateway/internal/http"
+	sgwlog "github.com/zisen123/serialgateway/internal/log"
 	"github.com/zisen123/serialgateway/internal/tunnel"
 )
 
@@ -27,29 +28,38 @@ func main() {
 		cfg.Gateway.HTTPPort = *httpPort
 	}
 
-	pm := core.NewPortManager(cfg)
+	logger, err := sgwlog.New(&cfg.Logging)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	slog.SetDefault(logger)
+
+	pm := core.NewPortManager(cfg, logger)
 	if err := pm.AutoStart(); err != nil {
-		log.Printf("auto-start warning: %v", err)
+		logger.Warn("auto-start had warnings", "error", err)
 	}
 
 	var rt *tunnel.ReverseTunnel
 	if cfg.ReverseTunnel.Host != "" {
-		rt = tunnel.New(&cfg.ReverseTunnel)
+		rt = tunnel.New(&cfg.ReverseTunnel, logger)
 		rt.Start()
-		log.Printf("reverse tunnel started: %s:%d -> local:%d",
-			cfg.ReverseTunnel.Host, cfg.ReverseTunnel.RemotePort, cfg.ReverseTunnel.LocalPort)
+		logger.Info("reverse tunnel started",
+			"host", cfg.ReverseTunnel.Host,
+			"remote_port", cfg.ReverseTunnel.RemotePort,
+			"local_port", cfg.ReverseTunnel.LocalPort)
 	}
 
-	gw := sgwhttp.NewGatewayWithManager(cfg, pm)
+	gw := sgwhttp.NewGatewayWithManager(cfg, pm, logger)
 	go gw.StartHTTP()
 
-	log.Printf("SerialGateway started - HTTP :%d, SSH base port %d", cfg.Gateway.HTTPPort, cfg.SSH.BasePort)
+	logger.Info("SerialGateway started", "http_port", cfg.Gateway.HTTPPort, "ssh_base_port", cfg.SSH.BasePort)
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 	<-sigCh
 
-	log.Println("shutting down...")
+	logger.Info("shutting down...")
 	if rt != nil {
 		rt.Stop()
 	}

@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/zisen123/serialgateway/internal/config"
@@ -22,7 +23,7 @@ func TestSSHPortMapping(t *testing.T) {
 func TestNewSSHServer(t *testing.T) {
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	srv, err := NewSSHServer("COM3", cfg)
+	srv, err := NewSSHServer("COM3", cfg, slog.Default())
 	if err != nil {
 		t.Fatalf("NewSSHServer failed: %v", err)
 	}

@@ -3,7 +3,7 @@ package serial
 import (
 	"bytes"
 	"fmt"
-	"log"
+	"log/slog"
 	"regexp"
 	"strings"
 	"sync"
@@ -25,6 +25,7 @@ type SerialSession struct {
 	device   string
 	baudrate int
 	cfg      *config.Config
+	logger   *slog.Logger
 
 	mu        sync.Mutex
 	port      serial.Port
@@ -40,7 +41,7 @@ type SerialSession struct {
 	stopCh chan struct{}
 }
 
-func NewSerialSession(device string, cfg *config.Config) *SerialSession {
+func NewSerialSession(device string, cfg *config.Config, logger *slog.Logger) *SerialSession {
 	baudrate := cfg.SerialDefaults.Baudrate
 	for _, p := range cfg.Ports {
 		if p.Device == device && p.Baudrate != 0 {
@@ -51,6 +52,7 @@ func NewSerialSession(device string, cfg *config.Config) *SerialSession {
 		device:      device,
 		baudrate:    baudrate,
 		cfg:         cfg,
+		logger:      logger,
 		writeCh:     make(chan WriteRequest, 64),
 		subscribers: make(map[chan string]struct{}),
 		ringBuffer:  NewRingBuffer(cfg.RingBuffer.MaxLines, cfg.RingBuffer.MaxBytes),
@@ -58,7 +60,7 @@ func NewSerialSession(device string, cfg *config.Config) *SerialSession {
 	}
 }
 
-func (s *SerialSession) Device() string                { return s.device }
+func (s *SerialSession) Device() string                 { return s.device }
 func (s *SerialSession) WriteChannel() chan WriteRequest { return s.writeCh }
 func (s *SerialSession) RingBuffer() *RingBuffer         { return s.ringBuffer }
 func (s *SerialSession) Baudrate() int                   { return s.baudrate }
@@ -159,7 +161,7 @@ func (s *SerialSession) readLoop() {
 		}
 		n, err := p.Read(buf)
 		if err != nil {
-			log.Printf("serial read error on %s: %v", s.device, err)
+			s.logger.Error("serial read error", "error", err)
 			s.broadcast("[serial disconnected - waiting for reconnect...]\n")
 			s.handleDisconnect()
 			return
@@ -263,6 +265,6 @@ func (s *SerialSession) reconnectLoop() {
 			s.broadcast("[serial reconnected]\n")
 			return
 		}
-		log.Printf("reconnect attempt for %s failed: %v", s.device, err)
+		s.logger.Warn("reconnect attempt failed", "error", err)
 	}
 }

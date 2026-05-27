@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
@@ -29,9 +30,9 @@ func setupGateway(t *testing.T, httpPort, sshBase int) (*core.PortManager, *sgwh
 	cfg.Gateway.HTTPPort = httpPort
 	cfg.SSH.BasePort = sshBase
 
-	pm := core.NewPortManager(cfg)
+	pm := core.NewPortManager(cfg, slog.Default())
 	pm.AutoStart()
-	gw := sgwhttp.NewGatewayWithManager(cfg, pm)
+	gw := sgwhttp.NewGatewayWithManager(cfg, pm, slog.Default())
 	return pm, gw
 }
 
@@ -114,7 +115,7 @@ func TestSSHConnectionToVirtualPort(t *testing.T) {
 	t.Logf("SSH output:\n%s", output)
 
 	if !strings.Contains(output, "log line") {
-		t.Error("expected 'log line' in output â€?device heartbeat not received")
+		t.Error("expected 'log line' in output ï¿½?device heartbeat not received")
 	}
 
 	if !strings.Contains(output, "Available commands") {

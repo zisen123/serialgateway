@@ -3,7 +3,7 @@ package tunnel
 import (
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"sync"
@@ -16,14 +16,16 @@ import (
 
 type ReverseTunnel struct {
 	cfg    *config.ReverseTunnelConfig
+	logger *slog.Logger
 	stopCh chan struct{}
 	once   sync.Once
 	wg     sync.WaitGroup
 }
 
-func New(cfg *config.ReverseTunnelConfig) *ReverseTunnel {
+func New(cfg *config.ReverseTunnelConfig, logger *slog.Logger) *ReverseTunnel {
 	return &ReverseTunnel{
 		cfg:    cfg,
+		logger: logger.With("component", "tunnel"),
 		stopCh: make(chan struct{}),
 	}
 }
@@ -49,7 +51,6 @@ func (t *ReverseTunnel) run() {
 	for {
 		err := t.connect()
 		if err == nil {
-			// clean shutdown via stopCh
 			return
 		}
 
@@ -57,7 +58,7 @@ func (t *ReverseTunnel) run() {
 		case <-t.stopCh:
 			return
 		default:
-			log.Printf("reverse tunnel: reconnect error: %v (retrying in %v)", err, interval)
+			t.logger.Error("reconnect failed", "error", err, "retry_interval", interval)
 			time.Sleep(interval)
 			interval *= 2
 			if interval > maxInterval {
@@ -101,7 +102,7 @@ func (t *ReverseTunnel) connect() error {
 	}
 	defer client.Close()
 
-	log.Printf("reverse tunnel: connected to %s", addr)
+	t.logger.Info("connected", "addr", addr)
 
 	remoteAddr := fmt.Sprintf("0.0.0.0:%d", t.cfg.RemotePort)
 	listener, err := client.Listen("tcp", remoteAddr)
@@ -110,7 +111,7 @@ func (t *ReverseTunnel) connect() error {
 	}
 	defer listener.Close()
 
-	log.Printf("reverse tunnel: forwarding %s -> localhost:%d", remoteAddr, t.cfg.LocalPort)
+	t.logger.Info("forwarding", "remote", remoteAddr, "local_port", t.cfg.LocalPort)
 
 	acceptCh := make(chan net.Conn, 8)
 	go func() {
@@ -120,7 +121,7 @@ func (t *ReverseTunnel) connect() error {
 				select {
 				case <-t.stopCh:
 				default:
-					log.Printf("reverse tunnel: accept error: %v", err)
+					t.logger.Error("accept error", "error", err)
 				}
 				close(acceptCh)
 				return
@@ -132,7 +133,7 @@ func (t *ReverseTunnel) connect() error {
 	for {
 		select {
 		case <-t.stopCh:
-			log.Printf("reverse tunnel: stopping")
+			t.logger.Info("stopping")
 			return nil
 		case remote, ok := <-acceptCh:
 			if !ok {
@@ -153,7 +154,7 @@ func (t *ReverseTunnel) forward(remote net.Conn) {
 	localAddr := net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", t.cfg.LocalPort))
 	local, err := net.DialTimeout("tcp", localAddr, 5*time.Second)
 	if err != nil {
-		log.Printf("reverse tunnel: dial local %s: %v", localAddr, err)
+		t.logger.Error("dial local failed", "addr", localAddr, "error", err)
 		return
 	}
 	defer local.Close()

@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 
@@ -12,8 +13,8 @@ import (
 func TestGetPorts(t *testing.T) {
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := core.NewPortManager(cfg)
-	gw := NewGatewayWithManager(cfg, pm)
+	pm := core.NewPortManager(cfg, slog.Default())
+	gw := NewGatewayWithManager(cfg, pm, slog.Default())
 	handler := gw.Handler()
 
 	req := httptest.NewRequest("GET", "/api/ports", nil)
@@ -35,8 +36,8 @@ func TestGetPorts(t *testing.T) {
 func TestGetMappings(t *testing.T) {
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := core.NewPortManager(cfg)
-	gw := NewGatewayWithManager(cfg, pm)
+	pm := core.NewPortManager(cfg, slog.Default())
+	gw := NewGatewayWithManager(cfg, pm, slog.Default())
 	handler := gw.Handler()
 
 	req := httptest.NewRequest("GET", "/api/mappings", nil)
@@ -58,8 +59,8 @@ func TestGetMappings(t *testing.T) {
 func TestGetConfig(t *testing.T) {
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := core.NewPortManager(cfg)
-	gw := NewGatewayWithManager(cfg, pm)
+	pm := core.NewPortManager(cfg, slog.Default())
+	gw := NewGatewayWithManager(cfg, pm, slog.Default())
 	handler := gw.Handler()
 
 	req := httptest.NewRequest("GET", "/api/config", nil)

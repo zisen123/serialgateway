@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"sync"
@@ -33,36 +33,38 @@ type SSHServer struct {
 	device  string
 	sshPort int
 	cfg     *config.Config
+	logger  *slog.Logger
 	session *serial.SerialSession
 	server  *gliderssh.Server
 	mu      sync.Mutex
 	running bool
 }
 
-func NewSSHServer(device string, cfg *config.Config) (*SSHServer, error) {
+func NewSSHServer(device string, cfg *config.Config, logger *slog.Logger) (*SSHServer, error) {
 	sshPort := PortMapping(device, cfg)
 	if sshPort == 0 {
 		return nil, fmt.Errorf("cannot determine SSH port for device %s", device)
 	}
-	sess := serial.NewSerialSession(device, cfg)
+	sess := serial.NewSerialSession(device, cfg, logger.With("component", "serial"))
 	srv := &SSHServer{
 		device:  device,
 		sshPort: sshPort,
 		cfg:     cfg,
+		logger:  logger,
 		session: sess,
 	}
 	return srv, nil
 }
 
-func (s *SSHServer) Port() int                       { return s.sshPort }
-func (s *SSHServer) Device() string                   { return s.device }
-func (s *SSHServer) Session() *serial.SerialSession   { return s.session }
-func (s *SSHServer) IsRunning() bool                  { s.mu.Lock(); defer s.mu.Unlock(); return s.running }
+func (s *SSHServer) Port() int                     { return s.sshPort }
+func (s *SSHServer) Device() string                  { return s.device }
+func (s *SSHServer) Session() *serial.SerialSession  { return s.session }
+func (s *SSHServer) IsRunning() bool                 { s.mu.Lock(); defer s.mu.Unlock(); return s.running }
 
-func loadOrGenerateHostKeyPEM(keyPath string) ([]byte, error) {
+func loadOrGenerateHostKeyPEM(keyPath string, logger *slog.Logger) ([]byte, error) {
 	keyData, err := os.ReadFile(keyPath)
 	if err == nil {
-		log.Printf("Loaded host key from %s", keyPath)
+		logger.Info("loaded host key", "path", keyPath)
 		return keyData, nil
 	}
 	if !os.IsNotExist(err) {
@@ -85,7 +87,7 @@ func loadOrGenerateHostKeyPEM(keyPath string) ([]byte, error) {
 	if err := os.WriteFile(keyPath, pemData, 0600); err != nil {
 		return nil, fmt.Errorf("save host key: %w", err)
 	}
-	log.Printf("Generated new host key and saved to %s", keyPath)
+	logger.Info("generated new host key", "path", keyPath)
 	return pemData, nil
 }
 
@@ -96,7 +98,7 @@ func (s *SSHServer) Start() error {
 		return nil
 	}
 
-	pemData, err := loadOrGenerateHostKeyPEM("host_key")
+	pemData, err := loadOrGenerateHostKeyPEM("host_key", s.logger)
 	if err != nil {
 		return fmt.Errorf("host key: %w", err)
 	}
@@ -114,9 +116,9 @@ func (s *SSHServer) Start() error {
 	s.server = sshServer
 	s.running = true
 	go func() {
-		log.Printf("SSH server for %s listening on :%d", s.device, s.sshPort)
+		s.logger.Info("SSH server listening", "port", s.sshPort)
 		if err := s.server.ListenAndServe(); err != nil {
-			log.Printf("SSH server for %s stopped: %v", s.device, err)
+			s.logger.Warn("SSH server stopped", "error", err)
 		}
 	}()
 	return nil

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/zisen123/serialgateway/internal/config"
@@ -9,7 +10,7 @@ import (
 func TestNewPortManager(t *testing.T) {
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := NewPortManager(cfg)
+	pm := NewPortManager(cfg, slog.Default())
 	if pm == nil {
 		t.Fatal("PortManager should not be nil")
 	}
@@ -23,7 +24,7 @@ func TestStartupConfiguredPorts(t *testing.T) {
 		},
 	}
 	config.ApplyDefaults(cfg)
-	pm := NewPortManager(cfg)
+	pm := NewPortManager(cfg, slog.Default())
 	mappings := pm.Mappings()
 	t.Logf("mappings: %v", mappings)
 }
@@ -31,7 +32,7 @@ func TestStartupConfiguredPorts(t *testing.T) {
 func TestAutoStart(t *testing.T) {
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := NewPortManager(cfg)
+	pm := NewPortManager(cfg, slog.Default())
 	err := pm.AutoStart()
 	if err != nil {
 		t.Logf("AutoStart returned error (expected if no ports available): %v", err)

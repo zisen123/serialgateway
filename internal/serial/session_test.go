@@ -1,6 +1,7 @@
 package serial
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 func TestSessionOpenClose(t *testing.T) {
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	sess := NewSerialSession("COM_TEST", cfg)
+	sess := NewSerialSession("COM_TEST", cfg, slog.Default())
 	err := sess.Open()
 	if err == nil {
 		sess.Close()
@@ -23,7 +24,7 @@ func TestSessionOpenClose(t *testing.T) {
 func TestSessionWriteQueue(t *testing.T) {
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	sess := NewSerialSession("COM_FAKE", cfg)
+	sess := NewSerialSession("COM_FAKE", cfg, slog.Default())
 	ch := sess.WriteChannel()
 	if ch == nil {
 		t.Fatal("write channel should not be nil")
@@ -33,7 +34,7 @@ func TestSessionWriteQueue(t *testing.T) {
 func TestSessionBroadcastSubscriber(t *testing.T) {
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	sess := NewSerialSession("COM_FAKE", cfg)
+	sess := NewSerialSession("COM_FAKE", cfg, slog.Default())
 	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub)
 	if sub == nil {
@@ -44,7 +45,7 @@ func TestSessionBroadcastSubscriber(t *testing.T) {
 func TestRingBufferIntegration(t *testing.T) {
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	sess := NewSerialSession("COM_FAKE", cfg)
+	sess := NewSerialSession("COM_FAKE", cfg, slog.Default())
 	rb := sess.RingBuffer()
 	if rb == nil {
 		t.Fatal("ring buffer should not be nil")

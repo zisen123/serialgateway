@@ -2,7 +2,7 @@ package core
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 
 	"github.com/zisen123/serialgateway/internal/config"
@@ -11,13 +11,15 @@ import (
 
 type PortManager struct {
 	cfg     *config.Config
+	logger  *slog.Logger
 	servers map[string]*ssh.SSHServer
 	mu      sync.RWMutex
 }
 
-func NewPortManager(cfg *config.Config) *PortManager {
+func NewPortManager(cfg *config.Config, logger *slog.Logger) *PortManager {
 	return &PortManager{
 		cfg:     cfg,
+		logger:  logger,
 		servers: make(map[string]*ssh.SSHServer),
 	}
 }
@@ -27,19 +29,19 @@ func (pm *PortManager) AutoStart() error {
 		if _, exists := pm.servers[portCfg.Device]; exists {
 			continue
 		}
-		srv, err := ssh.NewSSHServer(portCfg.Device, pm.cfg)
+		srv, err := ssh.NewSSHServer(portCfg.Device, pm.cfg, pm.logger.With("device", portCfg.Device))
 		if err != nil {
-			log.Printf("skip %s: %v", portCfg.Device, err)
+			pm.logger.Warn("skipping port", "device", portCfg.Device, "error", err)
 			continue
 		}
 		if err := srv.Start(); err != nil {
-			log.Printf("SSH server start failed for %s: %v", portCfg.Device, err)
+			pm.logger.Error("SSH server start failed", "device", portCfg.Device, "error", err)
 			continue
 		}
 		pm.mu.Lock()
 		pm.servers[portCfg.Device] = srv
 		pm.mu.Unlock()
-		log.Printf("started mapping: %s -> :%d", portCfg.Device, srv.Port())
+		pm.logger.Info("started mapping", "device", portCfg.Device, "ssh_port", srv.Port())
 	}
 	return nil
 }
@@ -70,7 +72,7 @@ func (pm *PortManager) AddMapping(device string) (*ssh.SSHServer, error) {
 	if _, exists := pm.servers[device]; exists {
 		return nil, fmt.Errorf("mapping already exists for %s", device)
 	}
-	srv, err := ssh.NewSSHServer(device, pm.cfg)
+	srv, err := ssh.NewSSHServer(device, pm.cfg, pm.logger.With("device", device))
 	if err != nil {
 		return nil, err
 	}
