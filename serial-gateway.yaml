@@ -32,8 +32,15 @@ reverse_tunnel:
   remote_port: 18999
   local_port: 18080
 
+adb:
+  adb_path: "adb"
+  base_port: 2300
+  write_timeout: 10s
+
 ports:
   - device: "COM3"
     baudrate: 115200
   - device: "COM25"
     baudrate: 115200
+  - device: "0123456789"
+    type: "adb"

@@ -14,7 +14,22 @@ import (
 	"github.com/zisen123/serialgateway/internal/config"
 )
 
-var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]|\x1b[^[A-Za-z]?[A-Za-z]`)
+var AnsiEscape = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]|\x1b[^[A-Za-z]?[A-Za-z]`)
+
+// Session is the common interface for device I/O sessions (serial or ADB).
+type Session interface {
+	Device() string
+	Baudrate() int
+	Open() error
+	Close()
+	IsConnected() bool
+	Subscribe() chan string
+	Unsubscribe(chan string)
+	WriteChannel() chan WriteRequest
+	RingBuffer() *RingBuffer
+}
+
+var _ Session = (*SerialSession)(nil)
 
 type WriteRequest struct {
 	Data []byte
@@ -180,7 +195,7 @@ func (s *SerialSession) readLoop() {
 			if i := strings.LastIndex(line, "\r"); i >= 0 {
 				line = line[i+1:]
 			}
-			line = ansiEscape.ReplaceAllString(line, "")
+			line = AnsiEscape.ReplaceAllString(line, "")
 			s.mu.Lock()
 			s.seqCounter++
 			seq := s.seqCounter

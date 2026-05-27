@@ -43,8 +43,17 @@ type RingBufferConfig struct {
 }
 
 type PortConfig struct {
-	Device   string `yaml:"device" json:"device"`
-	Baudrate int    `yaml:"baudrate" json:"baudrate"`
+	Device      string `yaml:"device" json:"device"`
+	Baudrate    int    `yaml:"baudrate" json:"baudrate"`
+	Type        string `yaml:"type" json:"type"`
+	AdbUsername string `yaml:"adb_username" json:"adb_username"`
+	AdbPassword string `yaml:"adb_password" json:"adb_password"`
+}
+
+type AdbConfig struct {
+	AdbPath      string        `yaml:"adb_path" json:"adb_path"`
+	BasePort     int           `yaml:"base_port" json:"base_port"`
+	WriteTimeout time.Duration `yaml:"write_timeout" json:"write_timeout"`
 }
 
 type ReverseTunnelConfig struct {
@@ -65,6 +74,7 @@ type Config struct {
 	Reconnect      ReconnectConfig      `yaml:"reconnect" json:"reconnect"`
 	ReverseTunnel  ReverseTunnelConfig  `yaml:"reverse_tunnel" json:"reverse_tunnel"`
 	Ports          []PortConfig         `yaml:"ports" json:"ports"`
+	ADB            *AdbConfig           `yaml:"adb" json:"adb"`
 }
 
 func Load(path string) (*Config, error) {
@@ -128,6 +138,18 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Reconnect.MaxInterval == 0 {
 		cfg.Reconnect.MaxInterval = 30 * time.Second
+	}
+
+	if cfg.ADB != nil {
+		if cfg.ADB.AdbPath == "" {
+			cfg.ADB.AdbPath = "adb"
+		}
+		if cfg.ADB.BasePort == 0 {
+			cfg.ADB.BasePort = 2300
+		}
+		if cfg.ADB.WriteTimeout == 0 {
+			cfg.ADB.WriteTimeout = 10 * time.Second
+		}
 	}
 
 	if cfg.ReverseTunnel.Host != "" {

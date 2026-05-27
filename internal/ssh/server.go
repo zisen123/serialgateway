@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"os"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 	"github.com/zisen123/serialgateway/internal/serial"
 )
 
+// PortMapping computes the SSH port for a serial COM port device.
 func PortMapping(device string, cfg *config.Config) int {
 	numStr := device
 	if len(numStr) > 3 && numStr[:3] == "COM" {
@@ -29,35 +31,38 @@ func PortMapping(device string, cfg *config.Config) int {
 	return cfg.SSH.BasePort + num
 }
 
+// ADBPortMapping computes a deterministic SSH port for an ADB device serial number.
+// Uses FNV-1a hash mod 1000 + ADB.BasePort, giving range [BasePort, BasePort+999].
+func ADBPortMapping(deviceSerial string, cfg *config.Config) int {
+	h := fnv.New32a()
+	h.Write([]byte(deviceSerial))
+	return cfg.ADB.BasePort + int(h.Sum32()%1000)
+}
+
 type SSHServer struct {
 	device  string
 	sshPort int
 	cfg     *config.Config
-	session *serial.SerialSession
+	session serial.Session
 	server  *gliderssh.Server
 	mu      sync.Mutex
 	running bool
 }
 
-func NewSSHServer(device string, cfg *config.Config) (*SSHServer, error) {
-	sshPort := PortMapping(device, cfg)
-	if sshPort == 0 {
-		return nil, fmt.Errorf("cannot determine SSH port for device %s", device)
-	}
-	sess := serial.NewSerialSession(device, cfg)
-	srv := &SSHServer{
+// NewSSHServer creates an SSH server wrapping the given session.
+func NewSSHServer(device string, sshPort int, cfg *config.Config, sess serial.Session) *SSHServer {
+	return &SSHServer{
 		device:  device,
 		sshPort: sshPort,
 		cfg:     cfg,
 		session: sess,
 	}
-	return srv, nil
 }
 
-func (s *SSHServer) Port() int                       { return s.sshPort }
-func (s *SSHServer) Device() string                   { return s.device }
-func (s *SSHServer) Session() *serial.SerialSession   { return s.session }
-func (s *SSHServer) IsRunning() bool                  { s.mu.Lock(); defer s.mu.Unlock(); return s.running }
+func (s *SSHServer) Port() int             { return s.sshPort }
+func (s *SSHServer) Device() string        { return s.device }
+func (s *SSHServer) Session() serial.Session { return s.session }
+func (s *SSHServer) IsRunning() bool       { s.mu.Lock(); defer s.mu.Unlock(); return s.running }
 
 func loadOrGenerateHostKeyPEM(keyPath string) ([]byte, error) {
 	keyData, err := os.ReadFile(keyPath)

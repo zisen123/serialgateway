@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zisen123/serialgateway/internal/adb"
 	"github.com/zisen123/serialgateway/internal/config"
 	"github.com/zisen123/serialgateway/internal/serial"
 	"github.com/zisen123/serialgateway/internal/ssh"
@@ -24,12 +25,13 @@ func (gw *Gateway) handleGetPorts(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 405, map[string]string{"error": "method not allowed"})
 		return
 	}
+	result := make([]map[string]interface{}, 0)
+
 	ports, err := serial.ListPorts()
 	if err != nil {
 		writeJSON(w, 500, map[string]string{"error": err.Error()})
 		return
 	}
-	result := make([]map[string]interface{}, 0, len(ports))
 	for _, p := range ports {
 		baudrate := gw.cfg.SerialDefaults.Baudrate
 		for _, cp := range gw.cfg.Ports {
@@ -50,8 +52,33 @@ func (gw *Gateway) handleGetPorts(w http.ResponseWriter, r *http.Request) {
 			"baudrate":    baudrate,
 			"ssh_port":    sshPort,
 			"status":      status,
+			"type":        "serial",
 		})
 	}
+
+	if gw.cfg.ADB != nil {
+		adbDevices, err := adb.ListDevices(gw.cfg.ADB.AdbPath)
+		if err == nil {
+			for _, d := range adbDevices {
+				sshPort := ssh.ADBPortMapping(d.Serial, gw.cfg)
+				status := "inactive"
+				srv := gw.pm.GetServer(d.Serial)
+				if srv != nil && srv.IsRunning() {
+					status = "active"
+				}
+				result = append(result, map[string]interface{}{
+					"device":      d.Serial,
+					"description": d.Model,
+					"hwid":        "",
+					"baudrate":    0,
+					"ssh_port":    sshPort,
+					"status":      status,
+					"type":        "adb",
+				})
+			}
+		}
+	}
+
 	writeJSON(w, 200, map[string]interface{}{"ports": result})
 }
 
@@ -70,13 +97,16 @@ func (gw *Gateway) handleGetMappings(w http.ResponseWriter, r *http.Request) {
 	mappings := gw.pm.Mappings()
 	result := make([]map[string]interface{}, 0, len(mappings))
 	for _, m := range mappings {
-		srv := gw.pm.GetServer(m["serial_port"].(string))
+		device := m["device"].(string)
+		srv := gw.pm.GetServer(device)
 		result = append(result, map[string]interface{}{
-			"serial_port": m["serial_port"],
+			"device":      device,
+			"serial_port": device,
 			"ssh_port":    m["ssh_port"],
 			"connections": 0,
 			"baudrate":    srv.Session().Baudrate(),
 			"connected":   srv.Session().IsConnected(),
+			"type":        m["type"],
 		})
 	}
 	writeJSON(w, 200, map[string]interface{}{"mappings": result})
@@ -104,9 +134,11 @@ func (gw *Gateway) handleCreateMapping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 201, map[string]interface{}{
+		"device":      req.Device,
 		"serial_port": req.Device,
 		"ssh_port":    srv.Port(),
 		"status":      "active",
+		"type":        gw.pm.GetDeviceType(req.Device),
 	})
 }
 
@@ -147,9 +179,12 @@ func (gw *Gateway) handleMappingDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]interface{}{
+		"device":      srv.Device(),
 		"serial_port": srv.Device(),
 		"ssh_port":    srv.Port(),
 		"connected":   srv.Session().IsConnected(),
+		"baudrate":    srv.Session().Baudrate(),
+		"type":        gw.pm.GetDeviceType(srv.Device()),
 	})
 }
 

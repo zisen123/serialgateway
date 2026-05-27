@@ -27,6 +27,10 @@ func (gw *Gateway) Handler() http.Handler {
 	mux.HandleFunc("/api/mappings", gw.handleMappings)
 	mux.HandleFunc("/api/mappings/", gw.handleMappingDetail)
 	mux.HandleFunc("/api/config", gw.handleConfig)
+	if gw.cfg.ADB != nil {
+		mux.HandleFunc("/api/adb/devices", gw.handleAdbDevices)
+		mux.HandleFunc("/api/adb/", gw.handleAdbDevice)
+	}
 	return mux
 }
 
