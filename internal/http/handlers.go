@@ -141,6 +141,8 @@ func (gw *Gateway) handleMappingDetail(w http.ResponseWriter, r *http.Request) {
 			gw.handleLog(w, r, srv)
 		case "write":
 			gw.handleWrite(w, r, srv)
+		case "exec":
+			gw.handleExec(w, r, srv)
 		default:
 			writeJSON(w, 404, map[string]string{"error": "unknown sub-path"})
 		}
