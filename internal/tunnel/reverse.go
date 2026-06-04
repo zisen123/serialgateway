@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -104,10 +105,23 @@ func (t *ReverseTunnel) connect() error {
 
 	t.logger.Info("connected", "addr", addr)
 
-	remoteAddr := fmt.Sprintf("0.0.0.0:%d", t.cfg.RemotePort)
+	// Pre-emptively kill any residual process holding the remote port
+	if err := t.killRemotePortHolder(client); err != nil {
+		t.logger.Warn("failed to clear remote port", "port", t.cfg.RemotePort, "error", err)
+	}
+
+	remoteAddr := fmt.Sprintf("%s:%d", t.cfg.BindAddress, t.cfg.RemotePort)
 	listener, err := client.Listen("tcp", remoteAddr)
 	if err != nil {
-		return fmt.Errorf("remote listen on %s: %w", remoteAddr, err)
+		// Port still occupied — try killing once more and retry
+		t.logger.Warn("listen failed, retrying after clearing port", "error", err)
+		time.Sleep(500 * time.Millisecond)
+		_ = t.killRemotePortHolder(client)
+		time.Sleep(500 * time.Millisecond)
+		listener, err = client.Listen("tcp", remoteAddr)
+		if err != nil {
+			return fmt.Errorf("remote listen on %s: %w", remoteAddr, err)
+		}
 	}
 	defer listener.Close()
 
@@ -146,6 +160,62 @@ func (t *ReverseTunnel) connect() error {
 			}()
 		}
 	}
+}
+
+// killRemotePortHolder runs a command on the remote to kill any process
+// listening on the configured remote port.  It is a best-effort operation:
+// if no process is found or the command fails the error is returned but
+// the caller may choose to ignore it.
+func (t *ReverseTunnel) killRemotePortHolder(client *ssh.Client) error {
+	session, err := client.NewSession()
+	if err != nil {
+		return fmt.Errorf("new session: %w", err)
+	}
+	defer session.Close()
+
+	port := fmt.Sprintf("%d", t.cfg.RemotePort)
+
+	// 1. Find PIDs whose listening sockets include :<port>
+	//    ss -tlnp outputs lines like:
+	//      LISTEN 0 128  0.0.0.0:18999 0.0.0.0:*  users:(("ssh",pid=123,fd=5))
+	//    We extract PIDs from the users column using portable awk (mawk/gawk).
+	findCmd := fmt.Sprintf(
+		`ss -tlnp 2>/dev/null | grep ':%s ' | grep -oP 'pid=\K[0-9]+' | sort -u`,
+		port,
+	)
+
+	out, err := session.CombinedOutput(findCmd)
+	if err != nil {
+		return fmt.Errorf("find remote port holder: %w", err)
+	}
+
+	pids := strings.Fields(string(out))
+	if len(pids) == 0 {
+		return nil // port is free
+	}
+
+	for _, pid := range pids {
+		t.logger.Info("killing residual remote process", "port", port, "pid", pid)
+		// Try graceful kill first, then SIGKILL as fallback
+		killSession, err := client.NewSession()
+		if err != nil {
+			t.logger.Warn("open session to kill failed", "pid", pid, "error", err)
+			continue
+		}
+		_ = killSession.Run(fmt.Sprintf("kill %s 2>/dev/null || true", pid))
+		killSession.Close()
+
+		// Wait briefly and force-kill if still alive
+		time.Sleep(200 * time.Millisecond)
+		killSession, err = client.NewSession()
+		if err != nil {
+			continue
+		}
+		_ = killSession.Run(fmt.Sprintf("kill -0 %s 2>/dev/null && kill -9 %s 2>/dev/null || true", pid, pid))
+		killSession.Close()
+	}
+
+	return nil
 }
 
 func (t *ReverseTunnel) forward(remote net.Conn) {

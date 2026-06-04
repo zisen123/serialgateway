@@ -31,11 +31,21 @@ reverse_tunnel:
   private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
   remote_port: 18999
   local_port: 18080
+  bind_address: "127.0.0.1"
+
+adb_reverse_tunnel:
+  host: "172.25.4.7"
+  port: 22
+  user: "yicong.wu"
+  private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
+  remote_port: 15037
+  local_port: 5037
+  bind_address: "127.0.0.1"
 
 logging:
   level: "info"
   format: "text"
-  output: "stdout"
+  output: "file"
   file_path: "gateway.log"
   max_size_mb: 100
   max_age_days: 30

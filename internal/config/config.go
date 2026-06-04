@@ -57,6 +57,7 @@ type ReverseTunnelConfig struct {
 	PrivateKeyFile string `yaml:"private_key_file" json:"private_key_file"`
 	RemotePort     int    `yaml:"remote_port"      json:"remote_port"`
 	LocalPort      int    `yaml:"local_port"       json:"local_port"`
+	BindAddress    string `yaml:"bind_address"     json:"bind_address"`
 }
 
 type LoggingConfig struct {
@@ -71,14 +72,15 @@ type LoggingConfig struct {
 }
 
 type Config struct {
-	Gateway        GatewayConfig        `yaml:"gateway" json:"gateway"`
-	SerialDefaults SerialDefaults       `yaml:"serial_defaults" json:"serial_defaults"`
-	RingBuffer     RingBufferConfig     `yaml:"ring_buffer" json:"ring_buffer"`
-	SSH            SSHConfig            `yaml:"ssh" json:"ssh"`
-	Reconnect      ReconnectConfig      `yaml:"reconnect" json:"reconnect"`
-	ReverseTunnel  ReverseTunnelConfig  `yaml:"reverse_tunnel" json:"reverse_tunnel"`
-	Logging        LoggingConfig        `yaml:"logging" json:"logging"`
-	Ports          []PortConfig         `yaml:"ports" json:"ports"`
+	Gateway          GatewayConfig        `yaml:"gateway" json:"gateway"`
+	SerialDefaults   SerialDefaults       `yaml:"serial_defaults" json:"serial_defaults"`
+	RingBuffer       RingBufferConfig     `yaml:"ring_buffer" json:"ring_buffer"`
+	SSH              SSHConfig            `yaml:"ssh" json:"ssh"`
+	Reconnect        ReconnectConfig      `yaml:"reconnect" json:"reconnect"`
+	ReverseTunnel    ReverseTunnelConfig  `yaml:"reverse_tunnel" json:"reverse_tunnel"`
+	AdbReverseTunnel ReverseTunnelConfig  `yaml:"adb_reverse_tunnel" json:"adb_reverse_tunnel"`
+	Logging          LoggingConfig        `yaml:"logging" json:"logging"`
+	Ports            []PortConfig         `yaml:"ports" json:"ports"`
 }
 
 func Load(path string) (*Config, error) {
@@ -163,9 +165,30 @@ func applyDefaults(cfg *Config) {
 		if cfg.ReverseTunnel.LocalPort == 0 {
 			cfg.ReverseTunnel.LocalPort = cfg.Gateway.HTTPPort
 		}
+		if cfg.ReverseTunnel.BindAddress == "" {
+			cfg.ReverseTunnel.BindAddress = "0.0.0.0"
+		}
 	}
 
-	if cfg.Logging.Level == "" {
+	if cfg.AdbReverseTunnel.Host != "" {
+			if cfg.AdbReverseTunnel.Port == 0 {
+				cfg.AdbReverseTunnel.Port = 22
+			}
+			if cfg.AdbReverseTunnel.User == "" {
+				cfg.AdbReverseTunnel.User = "root"
+			}
+			if cfg.AdbReverseTunnel.RemotePort == 0 {
+				cfg.AdbReverseTunnel.RemotePort = 15037
+			}
+			if cfg.AdbReverseTunnel.LocalPort == 0 {
+				cfg.AdbReverseTunnel.LocalPort = 5037
+			}
+			if cfg.AdbReverseTunnel.BindAddress == "" {
+				cfg.AdbReverseTunnel.BindAddress = "0.0.0.0"
+			}
+		}
+
+		if cfg.Logging.Level == "" {
 		cfg.Logging.Level = "info"
 	}
 	if cfg.Logging.Format == "" {

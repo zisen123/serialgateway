@@ -50,6 +50,16 @@ func main() {
 			"local_port", cfg.ReverseTunnel.LocalPort)
 	}
 
+	var adbRt *tunnel.ReverseTunnel
+	if cfg.AdbReverseTunnel.Host != "" {
+		adbRt = tunnel.New(&cfg.AdbReverseTunnel, logger)
+		adbRt.Start()
+		logger.Info("ADB reverse tunnel started",
+			"host", cfg.AdbReverseTunnel.Host,
+			"remote_port", cfg.AdbReverseTunnel.RemotePort,
+			"local_port", cfg.AdbReverseTunnel.LocalPort)
+	}
+
 	gw := sgwhttp.NewGatewayWithManager(cfg, pm, logger)
 	go gw.StartHTTP()
 
@@ -62,6 +72,9 @@ func main() {
 	logger.Info("shutting down...")
 	if rt != nil {
 		rt.Stop()
+	}
+	if adbRt != nil {
+		adbRt.Stop()
 	}
 	pm.Shutdown()
 }
