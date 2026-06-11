@@ -57,14 +57,21 @@ type ReverseTunnelConfig struct {
 	LocalPort      int    `yaml:"local_port"       json:"local_port"`
 }
 
+type FileRecordingConfig struct {
+	OutputDir  string `yaml:"output_dir"  json:"output_dir"`
+	MaxSizeMB  int    `yaml:"max_size_mb" json:"max_size_mb"`
+	TrimSizeMB int    `yaml:"trim_size_mb" json:"trim_size_mb"`
+}
+
 type Config struct {
 	Gateway        GatewayConfig        `yaml:"gateway" json:"gateway"`
 	SerialDefaults SerialDefaults       `yaml:"serial_defaults" json:"serial_defaults"`
 	RingBuffer     RingBufferConfig     `yaml:"ring_buffer" json:"ring_buffer"`
 	SSH            SSHConfig            `yaml:"ssh" json:"ssh"`
 	Reconnect      ReconnectConfig      `yaml:"reconnect" json:"reconnect"`
-	ReverseTunnel  ReverseTunnelConfig  `yaml:"reverse_tunnel" json:"reverse_tunnel"`
-	Ports          []PortConfig         `yaml:"ports" json:"ports"`
+	ReverseTunnel  ReverseTunnelConfig    `yaml:"reverse_tunnel" json:"reverse_tunnel"`
+	FileRecording  FileRecordingConfig   `yaml:"file_recording" json:"file_recording"`
+	Ports          []PortConfig          `yaml:"ports" json:"ports"`
 }
 
 func Load(path string) (*Config, error) {
@@ -143,5 +150,15 @@ func applyDefaults(cfg *Config) {
 		if cfg.ReverseTunnel.LocalPort == 0 {
 			cfg.ReverseTunnel.LocalPort = cfg.Gateway.HTTPPort
 		}
+	}
+
+	if cfg.FileRecording.OutputDir == "" {
+		cfg.FileRecording.OutputDir = "./serial_logs"
+	}
+	if cfg.FileRecording.MaxSizeMB == 0 {
+		cfg.FileRecording.MaxSizeMB = 1024
+	}
+	if cfg.FileRecording.TrimSizeMB == 0 {
+		cfg.FileRecording.TrimSizeMB = 100
 	}
 }
