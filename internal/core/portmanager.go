@@ -3,22 +3,26 @@ package core
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"sync"
 
 	"github.com/zisen123/serialgateway/internal/config"
+	"github.com/zisen123/serialgateway/internal/recorder"
 	"github.com/zisen123/serialgateway/internal/ssh"
 )
 
 type PortManager struct {
-	cfg     *config.Config
-	servers map[string]*ssh.SSHServer
-	mu      sync.RWMutex
+	cfg       *config.Config
+	servers   map[string]*ssh.SSHServer
+	recorders map[string]*recorder.FileRecorder
+	mu        sync.RWMutex
 }
 
 func NewPortManager(cfg *config.Config) *PortManager {
 	return &PortManager{
-		cfg:     cfg,
-		servers: make(map[string]*ssh.SSHServer),
+		cfg:       cfg,
+		servers:   make(map[string]*ssh.SSHServer),
+		recorders: make(map[string]*recorder.FileRecorder),
 	}
 }
 
@@ -36,8 +40,26 @@ func (pm *PortManager) AutoStart() error {
 			log.Printf("SSH server start failed for %s: %v", portCfg.Device, err)
 			continue
 		}
+
+		rec, err := recorder.NewFileRecorder(
+			portCfg.Device,
+			pm.cfg.FileRecording.OutputDir,
+			pm.cfg.FileRecording.MaxSizeMB,
+			pm.cfg.FileRecording.TrimSizeMB,
+			slog.Default().With("component", "recorder", "device", portCfg.Device),
+		)
+		if err != nil {
+			log.Printf("failed to create recorder for %s: %v", portCfg.Device, err)
+		} else {
+			srv.Session().SetRecorder(rec)
+			log.Printf("file recorder started for %s -> %s", portCfg.Device, pm.cfg.FileRecording.OutputDir)
+		}
+
 		pm.mu.Lock()
 		pm.servers[portCfg.Device] = srv
+		if rec != nil {
+			pm.recorders[portCfg.Device] = rec
+		}
 		pm.mu.Unlock()
 		log.Printf("started mapping: %s -> :%d", portCfg.Device, srv.Port())
 	}
@@ -96,6 +118,10 @@ func (pm *PortManager) RemoveMapping(device string) error {
 func (pm *PortManager) Shutdown() {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
+	for _, rec := range pm.recorders {
+		rec.Stop()
+	}
+	pm.recorders = make(map[string]*recorder.FileRecorder)
 	for _, srv := range pm.servers {
 		srv.Stop()
 	}
