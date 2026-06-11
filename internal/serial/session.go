@@ -37,6 +37,8 @@ type SerialSession struct {
 	ringBuffer *RingBuffer
 	seqCounter int
 
+	recorder interface{ Write([]byte) }
+
 	stopCh chan struct{}
 }
 
@@ -62,6 +64,11 @@ func (s *SerialSession) Device() string                { return s.device }
 func (s *SerialSession) WriteChannel() chan WriteRequest { return s.writeCh }
 func (s *SerialSession) RingBuffer() *RingBuffer         { return s.ringBuffer }
 func (s *SerialSession) Baudrate() int                   { return s.baudrate }
+
+// SetRecorder 设置输出录制器（可选）。串口读取的原始数据将异步写入 recorder。
+func (s *SerialSession) SetRecorder(r interface{ Write([]byte) }) {
+	s.recorder = r
+}
 
 func (s *SerialSession) Open() error {
 	s.mu.Lock()
@@ -168,6 +175,9 @@ func (s *SerialSession) readLoop() {
 			continue
 		}
 		s.broadcast(string(buf[:n]))
+		if s.recorder != nil {
+			s.recorder.Write(buf[:n])
+		}
 		lineBuf = append(lineBuf, buf[:n]...)
 		for {
 			idx := bytes.IndexByte(lineBuf, '\n')
