@@ -29,6 +29,7 @@ func (gw *Gateway) Handler() http.Handler {
 	mux.HandleFunc("/api/mappings", gw.handleMappings)
 	mux.HandleFunc("/api/mappings/", gw.handleMappingDetail)
 	mux.HandleFunc("/api/config", gw.handleConfig)
+	mux.HandleFunc("/api/notify", gw.handleNotify)
 	return mux
 }
 
