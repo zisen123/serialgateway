@@ -2,7 +2,6 @@ package http
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/zisen123/serialgateway/internal/notify"
@@ -31,11 +30,11 @@ func (gw *Gateway) handleNotify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := notify.Show(req.Title, req.Content); err != nil {
-		log.Printf("toast notification failed: %v", err)
+		gw.logger.Error("toast notification failed", "error", err)
 		writeJSON(w, 500, map[string]string{"error": err.Error()})
 		return
 	}
 
-	log.Printf("toast notification dispatched: %s", req.Title)
+	gw.logger.Info("toast notification dispatched", "title", req.Title)
 	writeJSON(w, 200, map[string]string{"status": "dispatched"})
 }

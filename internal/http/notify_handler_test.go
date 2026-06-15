@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -25,8 +26,8 @@ func TestHandleNotify_Valid(t *testing.T) {
 
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := core.NewPortManager(cfg)
-	gw := NewGatewayWithManager(cfg, pm)
+	pm := core.NewPortManager(cfg, slog.Default())
+	gw := NewGatewayWithManager(cfg, pm, slog.Default())
 	handler := gw.Handler()
 
 	body := `{"title":"Test Title","content":"Test Content"}`
@@ -57,8 +58,8 @@ func TestHandleNotify_MissingTitle(t *testing.T) {
 
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := core.NewPortManager(cfg)
-	gw := NewGatewayWithManager(cfg, pm)
+	pm := core.NewPortManager(cfg, slog.Default())
+	gw := NewGatewayWithManager(cfg, pm, slog.Default())
 	handler := gw.Handler()
 
 	body := `{"content":"C"}`
@@ -89,8 +90,8 @@ func TestHandleNotify_MissingContent(t *testing.T) {
 
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := core.NewPortManager(cfg)
-	gw := NewGatewayWithManager(cfg, pm)
+	pm := core.NewPortManager(cfg, slog.Default())
+	gw := NewGatewayWithManager(cfg, pm, slog.Default())
 	handler := gw.Handler()
 
 	body := `{"title":"T"}`
@@ -116,8 +117,8 @@ func TestHandleNotify_EmptyFields(t *testing.T) {
 
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := core.NewPortManager(cfg)
-	gw := NewGatewayWithManager(cfg, pm)
+	pm := core.NewPortManager(cfg, slog.Default())
+	gw := NewGatewayWithManager(cfg, pm, slog.Default())
 	handler := gw.Handler()
 
 	for _, tc := range []struct {
@@ -152,8 +153,8 @@ func TestHandleNotify_InvalidJSON(t *testing.T) {
 
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := core.NewPortManager(cfg)
-	gw := NewGatewayWithManager(cfg, pm)
+	pm := core.NewPortManager(cfg, slog.Default())
+	gw := NewGatewayWithManager(cfg, pm, slog.Default())
 	handler := gw.Handler()
 
 	req := httptest.NewRequest("POST", "/api/notify", strings.NewReader("not json"))
@@ -177,8 +178,8 @@ func TestHandleNotify_WrongMethod(t *testing.T) {
 
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := core.NewPortManager(cfg)
-	gw := NewGatewayWithManager(cfg, pm)
+	pm := core.NewPortManager(cfg, slog.Default())
+	gw := NewGatewayWithManager(cfg, pm, slog.Default())
 	handler := gw.Handler()
 
 	req := httptest.NewRequest("GET", "/api/notify", nil)
@@ -199,8 +200,8 @@ func TestHandleNotify_ShowFails(t *testing.T) {
 
 	cfg := &config.Config{}
 	config.ApplyDefaults(cfg)
-	pm := core.NewPortManager(cfg)
-	gw := NewGatewayWithManager(cfg, pm)
+	pm := core.NewPortManager(cfg, slog.Default())
+	gw := NewGatewayWithManager(cfg, pm, slog.Default())
 	handler := gw.Handler()
 
 	body := `{"title":"T","content":"C"}`
