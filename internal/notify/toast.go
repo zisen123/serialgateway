@@ -96,7 +96,7 @@ func showImpl(title, content, duration string) error {
 	script := powershellScript(xml)
 	encoded := encodeUTF16LEBase64(script)
 
-	cmd := exec.Command("PowerShell", "-NoProfile", "-NonInteractive",
+		cmd := exec.Command("PowerShell", "-NoProfile", "-NonInteractive",
 		"-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 
