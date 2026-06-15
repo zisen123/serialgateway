@@ -38,6 +38,39 @@ Go string → xmlEscapeText() (非ASCII→&#xxxxx;) → 纯ASCII XML → PowerSh
 
 ---
 
+## 调试记录
+
+### 2026-06-15：验证修复时再次出现乱码
+
+修复合并到 master 后，通过 curl 发送中文通知**仍然显示菱形问号**。
+
+**排查过程**：
+
+1. **怀疑 XML 生成有问题** → 在 `showImpl()` 中加 debug 日志，将生成的 XML 写入 `%TEMP%\toast_debug.xml`。发现 XML 中文变成了 `&#65533;`（U+FFFD 替换字符），而非预期的 `&#20013;` 等正确引用。说明数据在到达 `xmlEscapeText()` **之前**已经损坏。
+
+2. **怀疑 HTTP 层编码问题** → 在 `handleNotify()` 的 JSON 解码后加 hex dump 日志：
+   ```
+   title=中文诊断 title_bytes=e4b8ade69687e8af8ae696ad
+   ```
+   UTF-8 字节完全正确（`e4b8ad` = 中, `e69687` = 文）。数据在 Go 层没有问题。
+
+3. **怀疑旧二进制未替换** → 用 PowerShell `Get-Process` 确认旧的 `serial-gateway.exe` 仍占用 8081 端口。`taskkill /F` 后重新 build 并启动，XML debug 输出立即正常：
+   ```xml
+   <text id="1">&#20013;&#25991;&#35786;&#26029;</text>
+   <text id="2">&#26816;&#26597;XML&#32534;&#30721;</text>
+   ```
+   PowerShell `Invoke-RestMethod` 发送后通知中文正常显示。
+
+**结论**：修复代码本身正确，验证失败是因为**旧二进制未被 kill 就启动了新进程**，旧进程仍绑定端口接受请求。
+
+### 教训
+
+- 验证修复前务必 `Get-Process` / `taskkill` 确认旧进程已终止
+- Go 的 `json.Decoder` 和 `net/http` 对 UTF-8 处理没有问题，编码出问题时优先怀疑传输层（curl/bash 终端编码）或进程版本
+- 加 debug 日志输出 hex dump 是诊断编码问题的有效手段
+
+---
+
 ## 相关测试
 
 ### TC01: XML 生成 - 中文转数字引用
@@ -87,3 +120,19 @@ Go string → xmlEscapeText() (非ASCII→&#xxxxx;) → 纯ASCII XML → PowerSh
 **类型**: 手动（需 `RUN_TOAST_TEST=1`，需 Windows 桌面，需人工确认通知内容）
 
 实际弹出一个中文 Toast 通知，由人工确认桌面显示内容正确。
+
+### TC07: XML 生成 - long duration
+
+**文件**: `internal/notify/toast_test.go`  
+**函数**: `TestTC07_XMLGeneration_LongDuration`  
+**类型**: 自动
+
+验证 `toastXML(title, content, DurationLong)` 生成的 XML 包含 `duration="long"`。
+
+### TC07b: XML 生成 - short duration
+
+**文件**: `internal/notify/toast_test.go`  
+**函数**: `TestTC07b_XMLGeneration_ShortDuration`  
+**类型**: 自动
+
+验证 `toastXML(title, content, DurationShort)` 生成的 XML 包含 `duration="short"`。
