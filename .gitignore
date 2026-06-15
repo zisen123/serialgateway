@@ -3,5 +3,5 @@
 /serial-gateway
 host_key*
 gateway.log
-.claude/
+.claude/worktrees/
 serial_logs/
