@@ -17,7 +17,7 @@ func TestHandleNotify_Valid(t *testing.T) {
 	// Mock notify.Show to succeed
 	origShow := notify.Show
 	defer func() { notify.Show = origShow }()
-	notify.Show = func(title, content string) error {
+	notify.Show = func(title, content, duration string) error {
 		if title == "" || content == "" {
 			return errors.New("title and content are required")
 		}
@@ -49,7 +49,7 @@ func TestHandleNotify_Valid(t *testing.T) {
 func TestHandleNotify_MissingTitle(t *testing.T) {
 	origShow := notify.Show
 	defer func() { notify.Show = origShow }()
-	notify.Show = func(title, content string) error {
+	notify.Show = func(title, content, duration string) error {
 		if title == "" || content == "" {
 			return errors.New("title and content are required")
 		}
@@ -81,7 +81,7 @@ func TestHandleNotify_MissingTitle(t *testing.T) {
 func TestHandleNotify_MissingContent(t *testing.T) {
 	origShow := notify.Show
 	defer func() { notify.Show = origShow }()
-	notify.Show = func(title, content string) error {
+	notify.Show = func(title, content, duration string) error {
 		if title == "" || content == "" {
 			return errors.New("title and content are required")
 		}
@@ -108,7 +108,7 @@ func TestHandleNotify_MissingContent(t *testing.T) {
 func TestHandleNotify_EmptyFields(t *testing.T) {
 	origShow := notify.Show
 	defer func() { notify.Show = origShow }()
-	notify.Show = func(title, content string) error {
+	notify.Show = func(title, content, duration string) error {
 		if title == "" || content == "" {
 			return errors.New("title and content are required")
 		}
@@ -146,7 +146,7 @@ func TestHandleNotify_InvalidJSON(t *testing.T) {
 	origShow := notify.Show
 	defer func() { notify.Show = origShow }()
 	// Keep real Show but it shouldn't be called
-	notify.Show = func(title, content string) error {
+	notify.Show = func(title, content, duration string) error {
 		t.Fatal("Show should not be called for invalid JSON")
 		return nil
 	}
@@ -171,7 +171,7 @@ func TestHandleNotify_WrongMethod(t *testing.T) {
 	origShow := notify.Show
 	defer func() { notify.Show = origShow }()
 	// Keep real Show but it shouldn't be called
-	notify.Show = func(title, content string) error {
+	notify.Show = func(title, content, duration string) error {
 		t.Fatal("Show should not be called for wrong method")
 		return nil
 	}
@@ -194,7 +194,7 @@ func TestHandleNotify_WrongMethod(t *testing.T) {
 func TestHandleNotify_ShowFails(t *testing.T) {
 	origShow := notify.Show
 	defer func() { notify.Show = origShow }()
-	notify.Show = func(title, content string) error {
+	notify.Show = func(title, content, duration string) error {
 		return errors.New("toast push failed: notification system unavailable")
 	}
 

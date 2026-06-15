@@ -23,7 +23,7 @@ func TestTC01_XMLGeneration_ChineseToNumericRef(t *testing.T) {
 	title := "中文测试"
 	content := "来自串口网关的通知"
 
-	xml := toastXML(title, content)
+	xml := toastXML(title, content, DurationShort)
 	t.Logf("Generated XML:\n%s", xml)
 
 	if !strings.Contains(xml, "&#") {
@@ -42,7 +42,7 @@ func TestTC02_XMLGeneration_EnglishVerbatim(t *testing.T) {
 	title := "English Test"
 	content := "Hello World"
 
-	xml := toastXML(title, content)
+	xml := toastXML(title, content, DurationShort)
 	t.Logf("Generated XML:\n%s", xml)
 
 	if !strings.Contains(xml, "English Test") {
@@ -80,7 +80,7 @@ func TestTC04_FullPipeline_PreservesReferences(t *testing.T) {
 	title := "中文标题"
 	content := "中文正文内容，包含标点！"
 
-	xml := toastXML(title, content)
+	xml := toastXML(title, content, DurationShort)
 	script := powershellScript(xml)
 	encoded := encodeUTF16LEBase64(script)
 
@@ -114,7 +114,7 @@ func TestTC05_PowerShellXMLParse_DecodesChineseCorrectly(t *testing.T) {
 	title := "中文标题测试"
 	content := "中文正文：你好世界！"
 
-	xml := toastXML(title, content)
+	xml := toastXML(title, content, DurationShort)
 
 	verifyScript := fmt.Sprintf(`
 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
@@ -167,7 +167,7 @@ func TestTC06_ActualToast_Chinese(t *testing.T) {
 	title := "中文测试"
 	content := "来自串口网关的 Toast 通知！"
 
-	xml := toastXML(title, content)
+	xml := toastXML(title, content, DurationShort)
 	script := powershellScript(xml)
 	encoded := encodeUTF16LEBase64(script)
 
@@ -186,4 +186,31 @@ func TestTC06_ActualToast_Chinese(t *testing.T) {
 	}
 
 	t.Log("Toast dispatched. Verify Chinese text on desktop notification.")
+}
+
+// TC07: Long duration toast XML contains duration="long"
+func TestTC07_XMLGeneration_LongDuration(t *testing.T) {
+	xml := toastXML("Test", "Body", DurationLong)
+
+	if !strings.Contains(xml, `duration="long"`) {
+		t.Fatalf("Expected duration=\"long\" in XML, got:\n%s", xml)
+	}
+
+	// Verify short duration is NOT present
+	if strings.Contains(xml, `duration="short"`) {
+		t.Fatal("XML should NOT contain duration=\"short\"")
+	}
+
+	t.Logf("Long duration XML:\n%s", xml)
+}
+
+// TC07b: Short duration toast XML contains duration="short"
+func TestTC07b_XMLGeneration_ShortDuration(t *testing.T) {
+	xml := toastXML("Test", "Body", DurationShort)
+
+	if !strings.Contains(xml, `duration="short"`) {
+		t.Fatalf("Expected duration=\"short\" in XML, got:\n%s", xml)
+	}
+
+	t.Logf("Short duration XML:\n%s", xml)
 }

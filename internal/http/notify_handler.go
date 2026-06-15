@@ -8,8 +8,9 @@ import (
 )
 
 type notifyRequest struct {
-	Title   string `json:"title"`
-	Content string `json:"content"`
+	Title    string `json:"title"`
+	Content  string `json:"content"`
+	Duration string `json:"duration,omitempty"`
 }
 
 func (gw *Gateway) handleNotify(w http.ResponseWriter, r *http.Request) {
@@ -29,12 +30,21 @@ func (gw *Gateway) handleNotify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := notify.Show(req.Title, req.Content); err != nil {
+	duration := req.Duration
+	if duration == "" {
+		duration = notify.DurationShort
+	}
+	if duration != notify.DurationShort && duration != notify.DurationLong {
+		writeJSON(w, 400, map[string]string{"error": "duration must be 'short' or 'long'"})
+		return
+	}
+
+	if err := notify.Show(req.Title, req.Content, duration); err != nil {
 		gw.logger.Error("toast notification failed", "error", err)
 		writeJSON(w, 500, map[string]string{"error": err.Error()})
 		return
 	}
 
-	gw.logger.Info("toast notification dispatched", "title", req.Title)
-	writeJSON(w, 200, map[string]string{"status": "dispatched"})
+	gw.logger.Info("toast notification dispatched", "title", req.Title, "duration", duration)
+	writeJSON(w, 200, map[string]string{"status": "dispatched", "duration": duration})
 }

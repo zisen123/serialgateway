@@ -13,6 +13,12 @@ import (
 
 const appID = "SerialGateway.Notifier"
 
+// Valid toast durations.
+const (
+	DurationShort = "short"
+	DurationLong  = "long"
+)
+
 // Show is an exported function variable so tests can replace it with a mock.
 // The default implementation pops a Windows toast notification.
 var Show = showImpl
@@ -44,8 +50,8 @@ func xmlEscapeText(s string) string {
 }
 
 // toastXML generates the XML template for a Windows toast notification.
-func toastXML(title, content string) string {
-	return fmt.Sprintf(`<toast activationType="protocol" duration="short">
+func toastXML(title, content, duration string) string {
+	return fmt.Sprintf(`<toast activationType="protocol" duration="%s">
     <visual>
         <binding template="ToastGeneric">
             <text id="1">%s</text>
@@ -53,7 +59,7 @@ func toastXML(title, content string) string {
         </binding>
     </visual>
     <audio src="ms-winsoundevent:Notification.Default" loop="false"/>
-</toast>`, xmlEscapeText(title), xmlEscapeText(content))
+</toast>`, duration, xmlEscapeText(title), xmlEscapeText(content))
 }
 
 // powershellScript generates the PowerShell script to show a toast.
@@ -85,8 +91,8 @@ func encodeUTF16LEBase64(s string) string {
 	return base64.StdEncoding.EncodeToString(buf.Bytes())
 }
 
-func showImpl(title, content string) error {
-	xml := toastXML(title, content)
+func showImpl(title, content, duration string) error {
+	xml := toastXML(title, content, duration)
 	script := powershellScript(xml)
 	encoded := encodeUTF16LEBase64(script)
 
