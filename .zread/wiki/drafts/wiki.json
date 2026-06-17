@@ -1,0 +1,205 @@
+{
+  "id": "2026-06-17-150405",
+  "generated_at": "2026-06-17T07:04:05.3088611Z",
+  "language": "zh",
+  "pages": [
+    {
+      "slug": "1-gai-shu-shi-yao-shi-serialgateway",
+      "title": "概述：什么是 SerialGateway",
+      "file": "1-gai-shu-shi-yao-shi-serialgateway.md",
+      "section": "Get Started",
+      "level": "Beginner"
+    },
+    {
+      "slug": "2-kuai-su-qi-dong-5-fen-zhong-nei-yun-xing-chuan-kou-wang-guan",
+      "title": "快速启动：5 分钟内运行串口网关",
+      "file": "2-kuai-su-qi-dong-5-fen-zhong-nei-yun-xing-chuan-kou-wang-guan.md",
+      "section": "Get Started",
+      "level": "Beginner"
+    },
+    {
+      "slug": "3-xi-tong-jia-gou-quan-jing-si-ceng-she-ji-mo-xing",
+      "title": "系统架构全景：四层设计模型",
+      "file": "3-xi-tong-jia-gou-quan-jing-si-ceng-she-ji-mo-xing.md",
+      "section": "Deep Dive",
+      "group": "核心概念与架构",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "4-chuan-kou-i-o-guan-dao-du-qu-yan-bo-yu-xie-ru-dui-lie-bing-fa-mo-xing",
+      "title": "串口 I/O 管道：读取广播与写入队列并发模型",
+      "file": "4-chuan-kou-i-o-guan-dao-du-qu-yan-bo-yu-xie-ru-dui-lie-bing-fa-mo-xing.md",
+      "section": "Deep Dive",
+      "group": "核心概念与架构",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "5-chuan-kou-hui-hua-sheng-ming-zhou-qi-da-kai-du-qu-xie-ru-guan-bi",
+      "title": "串口会话生命周期：打开、读取、写入、关闭",
+      "file": "5-chuan-kou-hui-hua-sheng-ming-zhou-qi-da-kai-du-qu-xie-ru-guan-bi.md",
+      "section": "Deep Dive",
+      "group": "核心概念与架构",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "6-duan-lian-jian-ce-yu-zi-dong-zhong-lian-ji-zhi",
+      "title": "断连检测与自动重连机制",
+      "file": "6-duan-lian-jian-ce-yu-zi-dong-zhong-lian-ji-zhi.md",
+      "section": "Deep Dive",
+      "group": "核心概念与架构",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "7-pei-zhi-wen-jian-xiang-jie-suo-you-jie-zi-duan-yu-mo-ren-zhi",
+      "title": "配置文件详解：所有节字段与默认值",
+      "file": "7-pei-zhi-wen-jian-xiang-jie-suo-you-jie-zi-duan-yu-mo-ren-zhi.md",
+      "section": "Deep Dive",
+      "group": "配置与启动",
+      "level": "Beginner"
+    },
+    {
+      "slug": "8-qi-dong-liu-cheng-liu-shui-xian-cong-main-go-dao-yun-xing-zhong-de-fu-wu",
+      "title": "启动流程流水线：从 main.go 到运行中的服务",
+      "file": "8-qi-dong-liu-cheng-liu-shui-xian-cong-main-go-dao-yun-xing-zhong-de-fu-wu.md",
+      "section": "Deep Dive",
+      "group": "配置与启动",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "9-hou-tai-fu-wu-bu-shu-shi-yong-run-vbs-yu-pi-chu-li-jiao-ben",
+      "title": "后台服务部署：使用 run.vbs 与批处理脚本",
+      "file": "9-hou-tai-fu-wu-bu-shu-shi-yong-run-vbs-yu-pi-chu-li-jiao-ben.md",
+      "section": "Deep Dive",
+      "group": "配置与启动",
+      "level": "Beginner"
+    },
+    {
+      "slug": "10-ssh-duan-kou-ying-she-ce-lue-yu-zhu-ji-mi-yao-guan-li",
+      "title": "SSH 端口映射策略与主机密钥管理",
+      "file": "10-ssh-duan-kou-ying-she-ce-lue-yu-zhu-ji-mi-yao-guan-li.md",
+      "section": "Deep Dive",
+      "group": "SSH 接入层",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "11-ssh-hui-hua-chu-li-zhong-duan-i-o-yu-chuan-kou-de-shuang-xiang-qiao-jie",
+      "title": "SSH 会话处理：终端 I/O 与串口的双向桥接",
+      "file": "11-ssh-hui-hua-chu-li-zhong-duan-i-o-yu-chuan-kou-de-shuang-xiang-qiao-jie.md",
+      "section": "Deep Dive",
+      "group": "SSH 接入层",
+      "level": "Advanced"
+    },
+    {
+      "slug": "12-duan-kou-fa-xian-yu-ying-she-guan-li-api",
+      "title": "端口发现与映射管理 API",
+      "file": "12-duan-kou-fa-xian-yu-ying-she-guan-li-api.md",
+      "section": "Deep Dive",
+      "group": "HTTP REST API",
+      "level": "Beginner"
+    },
+    {
+      "slug": "13-chuan-kou-xie-ru-yu-exec-duan-dian-fa-song-ming-ling-bing-huo-qu-shi-shi-shu-chu-sse",
+      "title": "串口写入与 Exec 端点：发送命令并获取实时输出（SSE）",
+      "file": "13-chuan-kou-xie-ru-yu-exec-duan-dian-fa-song-ming-ling-bing-huo-qu-shi-shi-shu-chu-sse.md",
+      "section": "Deep Dive",
+      "group": "HTTP REST API",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "14-chuan-kou-li-shi-du-qu-tail-he-log-duan-dian",
+      "title": "串口历史读取：Tail 和 Log 端点",
+      "file": "14-chuan-kou-li-shi-du-qu-tail-he-log-duan-dian.md",
+      "section": "Deep Dive",
+      "group": "HTTP REST API",
+      "level": "Beginner"
+    },
+    {
+      "slug": "15-windows-toast-tong-zhi-api-she-ji-yu-shi-xian",
+      "title": "Windows Toast 通知 API：设计与实现",
+      "file": "15-windows-toast-tong-zhi-api-she-ji-yu-shi-xian.md",
+      "section": "Deep Dive",
+      "group": "HTTP REST API",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "16-ringbuffer-nei-cun-li-shi-cun-chu-yu-jian-suo",
+      "title": "RingBuffer 内存历史存储与检索",
+      "file": "16-ringbuffer-nei-cun-li-shi-cun-chu-yu-jian-suo.md",
+      "section": "Deep Dive",
+      "group": "串口引擎",
+      "level": "Advanced"
+    },
+    {
+      "slug": "17-chuan-kou-duan-kou-mei-ju-yu-zi-dong-fa-xian",
+      "title": "串口端口枚举与自动发现",
+      "file": "17-chuan-kou-duan-kou-mei-ju-yu-zi-dong-fa-xian.md",
+      "section": "Deep Dive",
+      "group": "串口引擎",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "18-chuan-kou-xie-ru-bing-fa-mo-xing-xie-ru-dui-lie-yu-chao-shi-chu-li",
+      "title": "串口写入并发模型：写入队列与超时处理",
+      "file": "18-chuan-kou-xie-ru-bing-fa-mo-xing-xie-ru-dui-lie-yu-chao-shi-chu-li.md",
+      "section": "Deep Dive",
+      "group": "串口引擎",
+      "level": "Advanced"
+    },
+    {
+      "slug": "19-wen-jian-lu-zhi-qi-yi-bu-chuan-kou-ri-zhi-chi-jiu-hua-yu-zi-dong-cai-jian",
+      "title": "文件录制器：异步串口日志持久化与自动裁剪",
+      "file": "19-wen-jian-lu-zhi-qi-yi-bu-chuan-kou-ri-zhi-chi-jiu-hua-yu-zi-dong-cai-jian.md",
+      "section": "Deep Dive",
+      "group": "基础设施服务",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "20-fan-xiang-ssh-sui-dao-jiang-ben-di-fu-wu-bao-lu-dao-yuan-cheng-fu-wu-qi",
+      "title": "反向 SSH 隧道：将本地服务暴露到远程服务器",
+      "file": "20-fan-xiang-ssh-sui-dao-jiang-ben-di-fu-wu-bao-lu-dao-yuan-cheng-fu-wu-qi.md",
+      "section": "Deep Dive",
+      "group": "基础设施服务",
+      "level": "Advanced"
+    },
+    {
+      "slug": "21-jie-gou-hua-ri-zhi-xi-tong-yan-se-wen-ben-yu-json-ge-shi-wen-jian-lun-zhuan",
+      "title": "结构化日志系统：颜色文本与 JSON 格式，文件轮转",
+      "file": "21-jie-gou-hua-ri-zhi-xi-tong-yan-se-wen-ben-yu-json-ge-shi-wen-jian-lun-zhuan.md",
+      "section": "Deep Dive",
+      "group": "基础设施服务",
+      "level": "Beginner"
+    },
+    {
+      "slug": "22-portmanager-xie-diao-ssh-fu-wu-qi-yu-lu-zhi-qi-de-sheng-ming-zhou-qi",
+      "title": "PortManager：协调 SSH 服务器与录制器的生命周期",
+      "file": "22-portmanager-xie-diao-ssh-fu-wu-qi-yu-lu-zhi-qi-de-sheng-ming-zhou-qi.md",
+      "section": "Deep Dive",
+      "group": "核心协调层",
+      "level": "Advanced"
+    },
+    {
+      "slug": "23-mei-duan-kou-ssh-fu-wu-qi-chuang-jian-yu-hui-hua-qiao-jie",
+      "title": "每端口 SSH 服务器创建与会话桥接",
+      "file": "23-mei-duan-kou-ssh-fu-wu-qi-chuang-jian-yu-hui-hua-qiao-jie.md",
+      "section": "Deep Dive",
+      "group": "核心协调层",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "24-ji-cheng-ce-shi-shi-yong-xu-ni-chuan-kou-qu-dong-jin-xing-duan-dao-duan-ce-shi",
+      "title": "集成测试：使用虚拟串口驱动进行端到端测试",
+      "file": "24-ji-cheng-ce-shi-shi-yong-xu-ni-chuan-kou-qu-dong-jin-xing-duan-dao-duan-ce-shi.md",
+      "section": "Deep Dive",
+      "group": "测试与调试",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "25-chang-jian-wen-ti-pai-cha-bug-ji-lu-yu-diao-shi-ji-qiao",
+      "title": "常见问题排查：Bug 记录与调试技巧",
+      "file": "25-chang-jian-wen-ti-pai-cha-bug-ji-lu-yu-diao-shi-ji-qiao.md",
+      "section": "Deep Dive",
+      "group": "测试与调试",
+      "level": "Beginner"
+    }
+  ]
+}

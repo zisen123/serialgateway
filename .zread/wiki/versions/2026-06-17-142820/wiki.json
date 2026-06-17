@@ -1,0 +1,226 @@
+{
+  "id": "2026-06-17-142820",
+  "generated_at": "2026-06-17T06:28:20.0432546Z",
+  "language": "en",
+  "pages": [
+    {
+      "slug": "1-overview",
+      "title": "Overview",
+      "file": "1-overview.md",
+      "section": "Get Started",
+      "level": "Beginner"
+    },
+    {
+      "slug": "2-quick-start",
+      "title": "Quick Start",
+      "file": "2-quick-start.md",
+      "section": "Get Started",
+      "level": "Beginner"
+    },
+    {
+      "slug": "3-configuration-reference",
+      "title": "Configuration Reference",
+      "file": "3-configuration-reference.md",
+      "section": "Get Started",
+      "level": "Beginner"
+    },
+    {
+      "slug": "4-running-as-a-background-service",
+      "title": "Running as a Background Service",
+      "file": "4-running-as-a-background-service.md",
+      "section": "Get Started",
+      "level": "Beginner"
+    },
+    {
+      "slug": "5-port-discovery-and-mapping-management",
+      "title": "Port Discovery and Mapping Management",
+      "file": "5-port-discovery-and-mapping-management.md",
+      "section": "Get Started",
+      "group": "HTTP API Usage",
+      "level": "Beginner"
+    },
+    {
+      "slug": "6-reading-serial-history-tail-and-log-endpoints",
+      "title": "Reading Serial History: Tail and Log Endpoints",
+      "file": "6-reading-serial-history-tail-and-log-endpoints.md",
+      "section": "Get Started",
+      "group": "HTTP API Usage",
+      "level": "Beginner"
+    },
+    {
+      "slug": "7-sending-commands-via-write-and-exec-endpoints",
+      "title": "Sending Commands via Write and Exec Endpoints",
+      "file": "7-sending-commands-via-write-and-exec-endpoints.md",
+      "section": "Get Started",
+      "group": "HTTP API Usage",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "8-connecting-to-a-serial-device-via-ssh",
+      "title": "Connecting to a Serial Device via SSH",
+      "file": "8-connecting-to-a-serial-device-via-ssh.md",
+      "section": "Get Started",
+      "level": "Beginner"
+    },
+    {
+      "slug": "9-system-architecture-and-component-overview",
+      "title": "System Architecture and Component Overview",
+      "file": "9-system-architecture-and-component-overview.md",
+      "section": "Deep Dive",
+      "group": "Architecture",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "10-startup-flow-from-main-go-to-running-services",
+      "title": "Startup Flow: From main.go to Running Services",
+      "file": "10-startup-flow-from-main-go-to-running-services.md",
+      "section": "Deep Dive",
+      "group": "Architecture",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "11-ssh-port-mapping-strategy-and-host-key-management",
+      "title": "SSH Port Mapping Strategy and Host Key Management",
+      "file": "11-ssh-port-mapping-strategy-and-host-key-management.md",
+      "section": "Deep Dive",
+      "group": "Architecture",
+      "level": "Advanced"
+    },
+    {
+      "slug": "12-serialsession-lifecycle-open-read-write-close",
+      "title": "SerialSession Lifecycle: Open, Read, Write, Close",
+      "file": "12-serialsession-lifecycle-open-read-write-close.md",
+      "section": "Deep Dive",
+      "group": "Serial Communication Engine",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "13-read-broadcasting-and-write-queue-concurrency-model",
+      "title": "Read Broadcasting and Write Queue Concurrency Model",
+      "file": "13-read-broadcasting-and-write-queue-concurrency-model.md",
+      "section": "Deep Dive",
+      "group": "Serial Communication Engine",
+      "level": "Advanced"
+    },
+    {
+      "slug": "14-disconnect-detection-and-automatic-reconnection",
+      "title": "Disconnect Detection and Automatic Reconnection",
+      "file": "14-disconnect-detection-and-automatic-reconnection.md",
+      "section": "Deep Dive",
+      "group": "Serial Communication Engine",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "15-ring-buffer-in-memory-history-storage-and-retrieval",
+      "title": "Ring Buffer: In-Memory History Storage and Retrieval",
+      "file": "15-ring-buffer-in-memory-history-storage-and-retrieval.md",
+      "section": "Deep Dive",
+      "group": "Serial Communication Engine",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "16-per-port-ssh-server-creation-and-session-bridging",
+      "title": "Per-Port SSH Server Creation and Session Bridging",
+      "file": "16-per-port-ssh-server-creation-and-session-bridging.md",
+      "section": "Deep Dive",
+      "group": "SSH Gateway Layer",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "17-portmanager-coordinating-ssh-servers-and-recorders",
+      "title": "PortManager: Coordinating SSH Servers and Recorders",
+      "file": "17-portmanager-coordinating-ssh-servers-and-recorders.md",
+      "section": "Deep Dive",
+      "group": "SSH Gateway Layer",
+      "level": "Advanced"
+    },
+    {
+      "slug": "18-route-registration-and-gateway-struct",
+      "title": "Route Registration and Gateway Struct",
+      "file": "18-route-registration-and-gateway-struct.md",
+      "section": "Deep Dive",
+      "group": "HTTP REST API Internals",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "19-server-sent-events-sse-streaming-for-command-execution",
+      "title": "Server-Sent Events (SSE) Streaming for Command Execution",
+      "file": "19-server-sent-events-sse-streaming-for-command-execution.md",
+      "section": "Deep Dive",
+      "group": "HTTP REST API Internals",
+      "level": "Advanced"
+    },
+    {
+      "slug": "20-runtime-configuration-update-via-put-api-config",
+      "title": "Runtime Configuration Update via PUT /api/config",
+      "file": "20-runtime-configuration-update-via-put-api-config.md",
+      "section": "Deep Dive",
+      "group": "HTTP REST API Internals",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "21-file-recorder-persistent-serial-logging-with-size-limits-and-trim",
+      "title": "File Recorder: Persistent Serial Logging with Size Limits and Trim",
+      "file": "21-file-recorder-persistent-serial-logging-with-size-limits-and-trim.md",
+      "section": "Deep Dive",
+      "group": "Extended Features",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "22-windows-toast-notification-system",
+      "title": "Windows Toast Notification System",
+      "file": "22-windows-toast-notification-system.md",
+      "section": "Deep Dive",
+      "group": "Extended Features",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "23-reverse-ssh-tunnel-for-remote-access",
+      "title": "Reverse SSH Tunnel for Remote Access",
+      "file": "23-reverse-ssh-tunnel-for-remote-access.md",
+      "section": "Deep Dive",
+      "group": "Extended Features",
+      "level": "Advanced"
+    },
+    {
+      "slug": "24-structured-logging-with-rotation-support",
+      "title": "Structured Logging with Rotation Support",
+      "file": "24-structured-logging-with-rotation-support.md",
+      "section": "Deep Dive",
+      "group": "Extended Features",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "25-testing-strategy-unit-integration-and-real-port-tests",
+      "title": "Testing Strategy: Unit, Integration, and Real-Port Tests",
+      "file": "25-testing-strategy-unit-integration-and-real-port-tests.md",
+      "section": "Deep Dive",
+      "group": "Testing",
+      "level": "Intermediate"
+    },
+    {
+      "slug": "26-virtual-serial-device-mock-com0com-for-integration-testing",
+      "title": "Virtual Serial Device Mock (com0com) for Integration Testing",
+      "file": "26-virtual-serial-device-mock-com0com-for-integration-testing.md",
+      "section": "Deep Dive",
+      "group": "Testing",
+      "level": "Advanced"
+    },
+    {
+      "slug": "27-building-and-deploying-the-binary",
+      "title": "Building and Deploying the Binary",
+      "file": "27-building-and-deploying-the-binary.md",
+      "section": "Deep Dive",
+      "group": "Operations",
+      "level": "Beginner"
+    },
+    {
+      "slug": "28-batch-scripts-and-vbs-launcher-for-windows",
+      "title": "Batch Scripts and VBS Launcher for Windows",
+      "file": "28-batch-scripts-and-vbs-launcher-for-windows.md",
+      "section": "Deep Dive",
+      "group": "Operations",
+      "level": "Intermediate"
+    }
+  ]
+}
