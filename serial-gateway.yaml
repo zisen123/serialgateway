@@ -57,3 +57,5 @@ ports:
     baudrate: 115200
   - device: "COM25"
     baudrate: 115200
+  - device: "COM21"
+    baudrate: 115200
