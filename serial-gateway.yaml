@@ -29,9 +29,11 @@ reverse_tunnel:
   port: 22
   user: "yicong.wu"
   private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
-  remote_port: 18080
-  # target_host: "127.0.0.1" # 默认本机；可设为局域网内其它机器，如 192.168.1.10
-  local_port: 18080
+  # Port exposed on the remote SSH server for reaching the LAN host's SSH service
+  remote_port: 10022
+  # LAN host reached through the tunnel (the cvitek board)
+  target_host: "192.168.1.10"
+  local_port: 22
   bind_address: "127.0.0.1"
 
 adb_reverse_tunnel:

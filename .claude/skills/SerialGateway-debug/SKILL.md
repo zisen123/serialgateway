@@ -103,6 +103,27 @@ In this repo, ready-made examples live at:
 - `serial-gateway-test-ssh.yaml`
 - `serial-gateway-test-lan-ssh.yaml`
 
+## Helper script
+
+`debug.ps1` (next to this SKILL.md) automates the whole safe side-by-side workflow: it checks for port/process conflicts with the live gateway, builds `serial-gateway-test.exe`, starts isolated instances from the test YAMLs, smoke-tests their HTTP ports, and stops them on exit. Run it from the repo root:
+
+```powershell
+# Full workflow: conflict check, build, start both configs, smoke-test, then stop
+powershell -NoProfile -ExecutionPolicy Bypass -File .claude/skills/SerialGateway-debug/debug.ps1 -Action all
+
+# Leave the test instances running for remote probing
+powershell -NoProfile -ExecutionPolicy Bypass -File .claude/skills/SerialGateway-debug/debug.ps1 -Action all -KeepRunning
+
+# Just one config (ssh or lan), skip rebuild if the test binary is current
+... -Action start -Config ssh -SkipBuild
+
+# Inspect state / stop only the test instances (never the live gateway)
+... -Action status
+... -Action stop
+```
+
+Other `-Action` values: `conflict`, `build`, `smoke`. `-Config` accepts `ssh`, `lan`, or `both` (default). The script records launched PIDs in `.debug-pids.json` and only ever stops processes named `serial-gateway-test`, so the live `serial-gateway` process is never touched.
+
 ## Safe debug workflow
 
 ### 1. Inspect the currently running gateway
