@@ -230,9 +230,9 @@ func TestHTTPExecSilenceTimeout(t *testing.T) {
 	cfg.SSH.BasePort = 32000
 	cfg.SerialDefaults.ExecSilenceTimeout = 1 * time.Second
 
-	pm := core.NewPortManager(cfg)
+	pm := core.NewPortManager(cfg, slog.Default())
 	pm.AutoStart()
-	gw := sgwhttp.NewGatewayWithManager(cfg, pm)
+	gw := sgwhttp.NewGatewayWithManager(cfg, pm, slog.Default())
 	go gw.StartHTTP()
 	defer pm.Shutdown()
 	time.Sleep(500 * time.Millisecond)

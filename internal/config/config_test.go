@@ -28,6 +28,21 @@ func TestLoadDefaults(t *testing.T) {
 	}
 }
 
+func TestApplyDefaultsSetsReverseTunnelTargetHost(t *testing.T) {
+	cfg := &Config{}
+	cfg.ReverseTunnel.Host = "example.com"
+	cfg.AdbReverseTunnel.Host = "example.com"
+
+	ApplyDefaults(cfg)
+
+	if cfg.ReverseTunnel.TargetHost != "127.0.0.1" {
+		t.Errorf("expected reverse tunnel target host 127.0.0.1, got %q", cfg.ReverseTunnel.TargetHost)
+	}
+	if cfg.AdbReverseTunnel.TargetHost != "127.0.0.1" {
+		t.Errorf("expected ADB reverse tunnel target host 127.0.0.1, got %q", cfg.AdbReverseTunnel.TargetHost)
+	}
+}
+
 func TestLoadFromFile(t *testing.T) {
 	content := `
 gateway:
@@ -41,6 +56,10 @@ ssh:
     password: "testpw"
 ring_buffer:
   max_lines: 100
+reverse_tunnel:
+  host: "relay.example.com"
+  target_host: "192.168.1.10"
+  local_port: 22
 `
 	tmp, err := os.CreateTemp("", "config-*.yaml")
 	if err != nil {
@@ -65,5 +84,11 @@ ring_buffer:
 	}
 	if cfg.RingBuffer.MaxLines != 100 {
 		t.Errorf("expected max lines 100, got %d", cfg.RingBuffer.MaxLines)
+	}
+	if cfg.ReverseTunnel.TargetHost != "192.168.1.10" {
+		t.Errorf("expected reverse tunnel target host 192.168.1.10, got %q", cfg.ReverseTunnel.TargetHost)
+	}
+	if cfg.ReverseTunnel.LocalPort != 22 {
+		t.Errorf("expected reverse tunnel local port 22, got %d", cfg.ReverseTunnel.LocalPort)
 	}
 }

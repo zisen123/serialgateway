@@ -1,0 +1,49 @@
+gateway:
+  http_port: 18082
+
+serial_defaults:
+  baudrate: 115200
+  timeout: 5s
+  bytesize: 8
+  parity: "N"
+  stopbits: 1
+  write_timeout: 10s
+
+ring_buffer:
+  max_lines: 1000
+  max_bytes: 1048576
+
+ssh:
+  base_port: 32100
+  auth:
+    type: "password"
+
+reconnect:
+  initial_interval: 1s
+  max_interval: 10s
+  discard_input_on_disconnect: true
+
+reverse_tunnel:
+  host: "172.25.4.7"
+  port: 22
+  user: "yicong.wu"
+  private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
+  remote_port: 10023
+  target_host: "172.25.86.204"
+  local_port: 22
+  bind_address: "127.0.0.1"
+
+adb_reverse_tunnel:
+  host: ""
+
+logging:
+  level: "info"
+  format: "text"
+  output: "file"
+  file_path: "gateway-test-lan-ssh.log"
+  max_size_mb: 20
+  max_age_days: 7
+  max_backups: 3
+  compress: false
+
+ports: []

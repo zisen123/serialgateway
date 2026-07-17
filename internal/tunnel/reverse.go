@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -125,7 +126,7 @@ func (t *ReverseTunnel) connect() error {
 	}
 	defer listener.Close()
 
-	t.logger.Info("forwarding", "remote", remoteAddr, "local_port", t.cfg.LocalPort)
+	t.logger.Info("forwarding", "remote", remoteAddr, "target_host", t.cfg.TargetHost, "target_port", t.cfg.LocalPort)
 
 	acceptCh := make(chan net.Conn, 8)
 	go func() {
@@ -218,13 +219,17 @@ func (t *ReverseTunnel) killRemotePortHolder(client *ssh.Client) error {
 	return nil
 }
 
+func (t *ReverseTunnel) targetAddr() string {
+	return net.JoinHostPort(t.cfg.TargetHost, strconv.Itoa(t.cfg.LocalPort))
+}
+
 func (t *ReverseTunnel) forward(remote net.Conn) {
 	defer remote.Close()
 
-	localAddr := net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", t.cfg.LocalPort))
-	local, err := net.DialTimeout("tcp", localAddr, 5*time.Second)
+	targetAddr := t.targetAddr()
+	local, err := net.DialTimeout("tcp", targetAddr, 5*time.Second)
 	if err != nil {
-		t.logger.Error("dial local failed", "addr", localAddr, "error", err)
+		t.logger.Error("dial target failed", "addr", targetAddr, "error", err)
 		return
 	}
 	defer local.Close()

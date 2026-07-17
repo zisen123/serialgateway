@@ -47,7 +47,7 @@ SSH port = `cfg.SSH.BasePort` + COM number (COM3 → 2203, COM25 → 2225). Comp
 - **`core`** — `PortManager` coordinates the map of device → `SSHServer` (+ `FileRecorder`). `AutoStart` reads `cfg.Ports` and starts a server+recorder per device. This is what the HTTP handlers mutate for dynamic mapping create/delete.
 - **`http`** — `Gateway` wires `net/http` routes (stdlib mux, no framework). `handlers.go` does routing by path-splitting under `/api/mappings/`; sub-paths `tail`, `log`, `write`, `exec` dispatch to dedicated handlers. `exec.go` implements SSE-style streaming command execution (subscribe → write → stream output until silence/timeout). `notify_handler.go` fronts the toast system.
 - **`notify`** — Windows toast notifications via PowerShell + Win32. `Show` is a function variable so tests can mock it. Non-ASCII is XML-escaped to ASCII numeric references to avoid encoding issues across Go/PowerShell/XML.
-- **`tunnel`** — `ReverseTunnel` opens an SSH reverse forward (`remote_port` → `local_port`) so a remote host can reach the gateway or ADB. Two instances can run: `reverse_tunnel` (gateway) and `adb_reverse_tunnel` (ADB `5037`→`15037`).
+- **`tunnel`** — `ReverseTunnel` opens an SSH reverse forward (`remote_port` → `target_host:local_port`) so a remote host can reach the gateway, ADB, or another LAN host. `target_host` defaults to `127.0.0.1`. Two instances can run: `reverse_tunnel` (gateway) and `adb_reverse_tunnel` (ADB `5037`→`15037`).
 - **`log`** — `slog` logger with lumberjack rotation; text/json format; stdout/file output.
 
 ### Data flow for a command

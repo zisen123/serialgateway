@@ -113,10 +113,6 @@ default. Override with `--config <path>` and `--http-port <port>`.
 go test ./...
 ```
 
-Note: `tests/integration_test.go` has a build error (stale signatures for
-`NewPortManager` / `NewGatewayWithManager` after a logger parameter was
-added). The internal package tests (`internal/...`) all pass.
-
 ## Direct invocation (bypass server)
 
 For PRs that only touch internal logic without changing HTTP surface, import
