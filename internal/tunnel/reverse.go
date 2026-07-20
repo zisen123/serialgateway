@@ -11,22 +11,25 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/crypto/ssh"
+	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/zisen123/serialgateway/internal/config"
+	gatewayssh "github.com/zisen123/serialgateway/internal/ssh"
 )
 
 type ReverseTunnel struct {
 	cfg    *config.ReverseTunnelConfig
+	sshCfg *config.SSHConfig
 	logger *slog.Logger
 	stopCh chan struct{}
 	once   sync.Once
 	wg     sync.WaitGroup
 }
 
-func New(cfg *config.ReverseTunnelConfig, logger *slog.Logger) *ReverseTunnel {
+func New(cfg *config.ReverseTunnelConfig, sshCfg *config.SSHConfig, logger *slog.Logger) *ReverseTunnel {
 	return &ReverseTunnel{
 		cfg:    cfg,
+		sshCfg: sshCfg,
 		logger: logger.With("component", "tunnel"),
 		stopCh: make(chan struct{}),
 	}
@@ -73,32 +76,29 @@ func (t *ReverseTunnel) run() {
 func (t *ReverseTunnel) connect() error {
 	addr := net.JoinHostPort(t.cfg.Host, fmt.Sprintf("%d", t.cfg.Port))
 
-	auths := []ssh.AuthMethod{}
-
+	auths := []gossh.AuthMethod{}
 	if t.cfg.PrivateKeyFile != "" {
 		signer, err := loadPrivateKey(t.cfg.PrivateKeyFile)
 		if err != nil {
 			return fmt.Errorf("load private key: %w", err)
 		}
-		auths = append(auths, ssh.PublicKeys(signer))
+		auths = append(auths, gossh.PublicKeys(signer))
 	}
-
 	if t.cfg.Password != "" {
-		auths = append(auths, ssh.Password(t.cfg.Password))
+		auths = append(auths, gossh.Password(t.cfg.Password))
 	}
-
 	if len(auths) == 0 {
 		return fmt.Errorf("no authentication method configured (set password or private_key_file)")
 	}
 
-	config := &ssh.ClientConfig{
+	clientCfg := &gossh.ClientConfig{
 		User:            t.cfg.User,
 		Auth:            auths,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
 		Timeout:         10 * time.Second,
 	}
 
-	client, err := ssh.Dial("tcp", addr, config)
+	client, err := gossh.Dial("tcp", addr, clientCfg)
 	if err != nil {
 		return fmt.Errorf("dial %s: %w", addr, err)
 	}
@@ -106,7 +106,6 @@ func (t *ReverseTunnel) connect() error {
 
 	t.logger.Info("connected", "addr", addr)
 
-	// Pre-emptively kill any residual process holding the remote port
 	if err := t.killRemotePortHolder(client); err != nil {
 		t.logger.Warn("failed to clear remote port", "port", t.cfg.RemotePort, "error", err)
 	}
@@ -114,7 +113,6 @@ func (t *ReverseTunnel) connect() error {
 	remoteAddr := fmt.Sprintf("%s:%d", t.cfg.BindAddress, t.cfg.RemotePort)
 	listener, err := client.Listen("tcp", remoteAddr)
 	if err != nil {
-		// Port still occupied — try killing once more and retry
 		t.logger.Warn("listen failed, retrying after clearing port", "error", err)
 		time.Sleep(500 * time.Millisecond)
 		_ = t.killRemotePortHolder(client)
@@ -126,7 +124,19 @@ func (t *ReverseTunnel) connect() error {
 	}
 	defer listener.Close()
 
-	t.logger.Info("forwarding", "remote", remoteAddr, "target_host", t.cfg.TargetHost, "target_port", t.cfg.LocalPort)
+	t.logger.Info("forwarding", "remote", remoteAddr, "mode", t.cfg.Mode, "target_host", t.cfg.TargetHost, "target_port", t.cfg.LocalPort)
+
+	var proxy *ProxyBridge
+	if t.cfg.Mode == "ssh_proxy" {
+		if t.sshCfg == nil || t.sshCfg.Auth.Type != "password" {
+			return fmt.Errorf("ssh_proxy mode currently requires gateway ssh.auth.type=password")
+		}
+		hostKeyPEM, err := gatewayssh.LoadOrGenerateHostKeyPEM("host_key", t.logger)
+		if err != nil {
+			return fmt.Errorf("load gateway host key: %w", err)
+		}
+		proxy = NewProxyBridge(t.cfg, t.sshCfg, hostKeyPEM, t.logger)
+	}
 
 	acceptCh := make(chan net.Conn, 8)
 	go func() {
@@ -157,17 +167,17 @@ func (t *ReverseTunnel) connect() error {
 			t.wg.Add(1)
 			go func() {
 				defer t.wg.Done()
+				if proxy != nil {
+					proxy.Serve(remote)
+					return
+				}
 				t.forward(remote)
 			}()
 		}
 	}
 }
 
-// killRemotePortHolder runs a command on the remote to kill any process
-// listening on the configured remote port.  It is a best-effort operation:
-// if no process is found or the command fails the error is returned but
-// the caller may choose to ignore it.
-func (t *ReverseTunnel) killRemotePortHolder(client *ssh.Client) error {
+func (t *ReverseTunnel) killRemotePortHolder(client *gossh.Client) error {
 	session, err := client.NewSession()
 	if err != nil {
 		return fmt.Errorf("new session: %w", err)
@@ -175,15 +185,7 @@ func (t *ReverseTunnel) killRemotePortHolder(client *ssh.Client) error {
 	defer session.Close()
 
 	port := fmt.Sprintf("%d", t.cfg.RemotePort)
-
-	// 1. Find PIDs whose listening sockets include :<port>
-	//    ss -tlnp outputs lines like:
-	//      LISTEN 0 128  0.0.0.0:18999 0.0.0.0:*  users:(("ssh",pid=123,fd=5))
-	//    We extract PIDs from the users column using portable awk (mawk/gawk).
-	findCmd := fmt.Sprintf(
-		`ss -tlnp 2>/dev/null | grep ':%s ' | grep -oP 'pid=\K[0-9]+' | sort -u`,
-		port,
-	)
+	findCmd := fmt.Sprintf(`ss -tlnp 2>/dev/null | grep ':%s ' | grep -oP 'pid=\\K[0-9]+' | sort -u`, port)
 
 	out, err := session.CombinedOutput(findCmd)
 	if err != nil {
@@ -192,12 +194,11 @@ func (t *ReverseTunnel) killRemotePortHolder(client *ssh.Client) error {
 
 	pids := strings.Fields(string(out))
 	if len(pids) == 0 {
-		return nil // port is free
+		return nil
 	}
 
 	for _, pid := range pids {
 		t.logger.Info("killing residual remote process", "port", port, "pid", pid)
-		// Try graceful kill first, then SIGKILL as fallback
 		killSession, err := client.NewSession()
 		if err != nil {
 			t.logger.Warn("open session to kill failed", "pid", pid, "error", err)
@@ -206,7 +207,6 @@ func (t *ReverseTunnel) killRemotePortHolder(client *ssh.Client) error {
 		_ = killSession.Run(fmt.Sprintf("kill %s 2>/dev/null || true", pid))
 		killSession.Close()
 
-		// Wait briefly and force-kill if still alive
 		time.Sleep(200 * time.Millisecond)
 		killSession, err = client.NewSession()
 		if err != nil {
@@ -236,21 +236,21 @@ func (t *ReverseTunnel) forward(remote net.Conn) {
 
 	done := make(chan struct{}, 2)
 	go func() {
-		io.Copy(local, remote)
+		_, _ = io.Copy(local, remote)
 		done <- struct{}{}
 	}()
 	go func() {
-		io.Copy(remote, local)
+		_, _ = io.Copy(remote, local)
 		done <- struct{}{}
 	}()
 
 	<-done
 }
 
-func loadPrivateKey(path string) (ssh.Signer, error) {
+func loadPrivateKey(path string) (gossh.Signer, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read key file: %w", err)
 	}
-	return ssh.ParsePrivateKey(data)
+	return gossh.ParsePrivateKey(data)
 }

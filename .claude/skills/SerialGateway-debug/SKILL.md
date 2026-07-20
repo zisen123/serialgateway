@@ -103,6 +103,22 @@ In this repo, ready-made examples live at:
 - `serial-gateway-test-ssh.yaml`
 - `serial-gateway-test-lan-ssh.yaml`
 
+### Pattern C — ssh_proxy stable-host-key mode
+
+Use this when the target board reflashes often and its SSH host key changes. Set:
+
+```yaml
+reverse_tunnel:
+  remote_port: 10022
+  target_host: "192.168.1.10"
+  local_port: 22
+  mode: "ssh_proxy"
+  target_user: "root"
+  target_password: "<board-password>"   # or target_private_key_file
+```
+
+Then the remote user connects to the gateway endpoint as usual, but the host key they pin is the gateway's stable `host_key`, not the board's. Validation target: reconnect after the board's host key changes and confirm the remote side does **not** get a known_hosts mismatch.
+
 ## Helper script
 
 `debug.ps1` (next to this SKILL.md) automates the whole safe side-by-side workflow: it checks for port/process conflicts with the live gateway, builds `serial-gateway-test.exe`, starts isolated instances from the test YAMLs, smoke-tests their HTTP ports, and stops them on exit. Run it from the repo root:

@@ -56,12 +56,12 @@ func NewSSHServer(device string, cfg *config.Config, logger *slog.Logger) (*SSHS
 	return srv, nil
 }
 
-func (s *SSHServer) Port() int                     { return s.sshPort }
-func (s *SSHServer) Device() string                  { return s.device }
-func (s *SSHServer) Session() *serial.SerialSession  { return s.session }
-func (s *SSHServer) IsRunning() bool                 { s.mu.Lock(); defer s.mu.Unlock(); return s.running }
+func (s *SSHServer) Port() int                      { return s.sshPort }
+func (s *SSHServer) Device() string                 { return s.device }
+func (s *SSHServer) Session() *serial.SerialSession { return s.session }
+func (s *SSHServer) IsRunning() bool                { s.mu.Lock(); defer s.mu.Unlock(); return s.running }
 
-func loadOrGenerateHostKeyPEM(keyPath string, logger *slog.Logger) ([]byte, error) {
+func LoadOrGenerateHostKeyPEM(keyPath string, logger *slog.Logger) ([]byte, error) {
 	keyData, err := os.ReadFile(keyPath)
 	if err == nil {
 		logger.Info("loaded host key", "path", keyPath)
@@ -98,7 +98,7 @@ func (s *SSHServer) Start() error {
 		return nil
 	}
 
-	pemData, err := loadOrGenerateHostKeyPEM("host_key", s.logger)
+	pemData, err := LoadOrGenerateHostKeyPEM("host_key", s.logger)
 	if err != nil {
 		return fmt.Errorf("host key: %w", err)
 	}

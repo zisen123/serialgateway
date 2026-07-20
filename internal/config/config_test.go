@@ -38,8 +38,14 @@ func TestApplyDefaultsSetsReverseTunnelTargetHost(t *testing.T) {
 	if cfg.ReverseTunnel.TargetHost != "127.0.0.1" {
 		t.Errorf("expected reverse tunnel target host 127.0.0.1, got %q", cfg.ReverseTunnel.TargetHost)
 	}
+	if cfg.ReverseTunnel.Mode != "tcp" {
+		t.Errorf("expected reverse tunnel mode tcp, got %q", cfg.ReverseTunnel.Mode)
+	}
 	if cfg.AdbReverseTunnel.TargetHost != "127.0.0.1" {
 		t.Errorf("expected ADB reverse tunnel target host 127.0.0.1, got %q", cfg.AdbReverseTunnel.TargetHost)
+	}
+	if cfg.AdbReverseTunnel.Mode != "tcp" {
+		t.Errorf("expected ADB reverse tunnel mode tcp, got %q", cfg.AdbReverseTunnel.Mode)
 	}
 }
 
@@ -60,14 +66,21 @@ reverse_tunnel:
   host: "relay.example.com"
   target_host: "192.168.1.10"
   local_port: 22
+  mode: "ssh_proxy"
+  target_user: "root"
+  target_password: "boardpw"
 `
 	tmp, err := os.CreateTemp("", "config-*.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(tmp.Name())
-	tmp.WriteString(content)
-	tmp.Close()
+	if _, err := tmp.WriteString(content); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmp.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	cfg, err := Load(tmp.Name())
 	if err != nil {
@@ -90,5 +103,14 @@ reverse_tunnel:
 	}
 	if cfg.ReverseTunnel.LocalPort != 22 {
 		t.Errorf("expected reverse tunnel local port 22, got %d", cfg.ReverseTunnel.LocalPort)
+	}
+	if cfg.ReverseTunnel.Mode != "ssh_proxy" {
+		t.Errorf("expected reverse tunnel mode ssh_proxy, got %q", cfg.ReverseTunnel.Mode)
+	}
+	if cfg.ReverseTunnel.TargetUser != "root" {
+		t.Errorf("expected reverse tunnel target user root, got %q", cfg.ReverseTunnel.TargetUser)
+	}
+	if cfg.ReverseTunnel.TargetPassword != "boardpw" {
+		t.Errorf("expected reverse tunnel target password boardpw, got %q", cfg.ReverseTunnel.TargetPassword)
 	}
 }

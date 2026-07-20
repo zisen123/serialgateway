@@ -42,22 +42,24 @@ func main() {
 
 	var rt *tunnel.ReverseTunnel
 	if cfg.ReverseTunnel.Host != "" {
-		rt = tunnel.New(&cfg.ReverseTunnel, logger)
+		rt = tunnel.New(&cfg.ReverseTunnel, &cfg.SSH, logger)
 		rt.Start()
 		logger.Info("reverse tunnel started",
 			"host", cfg.ReverseTunnel.Host,
 			"remote_port", cfg.ReverseTunnel.RemotePort,
+			"mode", cfg.ReverseTunnel.Mode,
 			"target_host", cfg.ReverseTunnel.TargetHost,
 			"target_port", cfg.ReverseTunnel.LocalPort)
 	}
 
 	var adbRt *tunnel.ReverseTunnel
 	if cfg.AdbReverseTunnel.Host != "" {
-		adbRt = tunnel.New(&cfg.AdbReverseTunnel, logger)
+		adbRt = tunnel.New(&cfg.AdbReverseTunnel, &cfg.SSH, logger)
 		adbRt.Start()
 		logger.Info("ADB reverse tunnel started",
 			"host", cfg.AdbReverseTunnel.Host,
 			"remote_port", cfg.AdbReverseTunnel.RemotePort,
+			"mode", cfg.AdbReverseTunnel.Mode,
 			"target_host", cfg.AdbReverseTunnel.TargetHost,
 			"target_port", cfg.AdbReverseTunnel.LocalPort)
 	}

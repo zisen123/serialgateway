@@ -34,6 +34,12 @@ reverse_tunnel:
   # LAN host reached through the tunnel (the cvitek board)
   target_host: "192.168.1.10"
   local_port: 22
+  # tcp = raw TCP forwarding, ssh_proxy = gateway terminates SSH with stable host_key
+  mode: "tcp"
+  # Used only in ssh_proxy mode
+  # target_user: "root"
+  # target_password: ""
+  # target_private_key_file: "C:/path/to/board/key"
   bind_address: "127.0.0.1"
 
 adb_reverse_tunnel:

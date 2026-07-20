@@ -50,15 +50,19 @@ type PortConfig struct {
 }
 
 type ReverseTunnelConfig struct {
-	Host           string `yaml:"host"             json:"host"`
-	Port           int    `yaml:"port"             json:"port"`
-	User           string `yaml:"user"             json:"user"`
-	Password       string `yaml:"password"         json:"password"`
-	PrivateKeyFile string `yaml:"private_key_file" json:"private_key_file"`
-	RemotePort     int    `yaml:"remote_port"      json:"remote_port"`
-	TargetHost     string `yaml:"target_host"      json:"target_host"`
-	LocalPort      int    `yaml:"local_port"       json:"local_port"`
-	BindAddress    string `yaml:"bind_address"     json:"bind_address"`
+	Host             string `yaml:"host"                    json:"host"`
+	Port             int    `yaml:"port"                    json:"port"`
+	User             string `yaml:"user"                    json:"user"`
+	Password         string `yaml:"password"                json:"password"`
+	PrivateKeyFile   string `yaml:"private_key_file"        json:"private_key_file"`
+	RemotePort       int    `yaml:"remote_port"             json:"remote_port"`
+	TargetHost       string `yaml:"target_host"             json:"target_host"`
+	LocalPort        int    `yaml:"local_port"              json:"local_port"`
+	BindAddress      string `yaml:"bind_address"            json:"bind_address"`
+	Mode             string `yaml:"mode"                    json:"mode"`
+	TargetUser       string `yaml:"target_user"             json:"target_user"`
+	TargetPassword   string `yaml:"target_password"         json:"target_password"`
+	TargetPrivateKey string `yaml:"target_private_key_file" json:"target_private_key_file"`
 }
 
 type FileRecordingConfig struct {
@@ -173,6 +177,9 @@ func applyDefaults(cfg *Config) {
 		if cfg.ReverseTunnel.TargetHost == "" {
 			cfg.ReverseTunnel.TargetHost = "127.0.0.1"
 		}
+		if cfg.ReverseTunnel.Mode == "" {
+			cfg.ReverseTunnel.Mode = "tcp"
+		}
 		if cfg.ReverseTunnel.LocalPort == 0 {
 			cfg.ReverseTunnel.LocalPort = cfg.Gateway.HTTPPort
 		}
@@ -193,6 +200,9 @@ func applyDefaults(cfg *Config) {
 		}
 		if cfg.AdbReverseTunnel.TargetHost == "" {
 			cfg.AdbReverseTunnel.TargetHost = "127.0.0.1"
+		}
+		if cfg.AdbReverseTunnel.Mode == "" {
+			cfg.AdbReverseTunnel.Mode = "tcp"
 		}
 		if cfg.AdbReverseTunnel.LocalPort == 0 {
 			cfg.AdbReverseTunnel.LocalPort = 5037
