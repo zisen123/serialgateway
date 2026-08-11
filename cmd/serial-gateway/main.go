@@ -40,43 +40,35 @@ func main() {
 		logger.Warn("auto-start had warnings", "error", err)
 	}
 
-	var rt *tunnel.ReverseTunnel
-	if cfg.ReverseTunnel.Host != "" {
-		rt = tunnel.New(&cfg.ReverseTunnel, &cfg.SSH, logger)
-		rt.Start()
-		logger.Info("reverse tunnel started",
-			"host", cfg.ReverseTunnel.Host,
-			"remote_port", cfg.ReverseTunnel.RemotePort,
-			"mode", cfg.ReverseTunnel.Mode,
-			"target_host", cfg.ReverseTunnel.TargetHost,
-			"target_port", cfg.ReverseTunnel.LocalPort)
-	}
-
-	var adbRt *tunnel.ReverseTunnel
-	if cfg.AdbReverseTunnel.Host != "" {
-		adbRt = tunnel.New(&cfg.AdbReverseTunnel, &cfg.SSH, logger)
-		adbRt.Start()
-		logger.Info("ADB reverse tunnel started",
-			"host", cfg.AdbReverseTunnel.Host,
-			"remote_port", cfg.AdbReverseTunnel.RemotePort,
-			"mode", cfg.AdbReverseTunnel.Mode,
-			"target_host", cfg.AdbReverseTunnel.TargetHost,
-			"target_port", cfg.AdbReverseTunnel.LocalPort)
-	}
-
-	var serialSSHRt *tunnel.ReverseTunnel
-	if cfg.SerialSSHTunnel.Host != "" {
-		forwards := buildSerialSSHForwards(cfg, logger)
-		if len(forwards) == 0 {
-			logger.Warn("serial_ssh_tunnel configured but no forwardable COM ports in cfg.ports")
-		} else {
-			serialSSHRt = tunnel.NewMulti(&cfg.SerialSSHTunnel, &cfg.SSH, forwards, logger)
-			serialSSHRt.Start()
-			logger.Info("serial SSH reverse tunnel started",
-				"host", cfg.SerialSSHTunnel.Host,
-				"bind_address", cfg.SerialSSHTunnel.BindAddress,
-				"forwards", len(forwards))
+	// Collect every configured tunnel — the three named legacy fields plus any
+	// entries in the reverse_tunnels list — and start them uniformly.
+	var tunnels []*tunnel.ReverseTunnel
+	start := func(name string, rtCfg *config.ReverseTunnelConfig) {
+		if t := startReverseTunnel(name, rtCfg, cfg, logger); t != nil {
+			tunnels = append(tunnels, t)
 		}
+	}
+
+	if cfg.ReverseTunnel.Host != "" {
+		start("reverse_tunnel", &cfg.ReverseTunnel)
+	}
+	if cfg.AdbReverseTunnel.Host != "" {
+		start("adb_reverse_tunnel", &cfg.AdbReverseTunnel)
+	}
+	if cfg.SerialSSHTunnel.Host != "" {
+		cfg.SerialSSHTunnel.Kind = "serial_ssh"
+		start("serial_ssh_tunnel", &cfg.SerialSSHTunnel)
+	}
+	for i := range cfg.ReverseTunnels {
+		rtCfg := &cfg.ReverseTunnels[i]
+		if rtCfg.Host == "" {
+			continue
+		}
+		name := rtCfg.Name
+		if name == "" {
+			name = fmt.Sprintf("reverse_tunnels[%d]", i)
+		}
+		start(name, rtCfg)
 	}
 
 	gw := sgwhttp.NewGatewayWithManager(cfg, pm, logger)
@@ -89,14 +81,41 @@ func main() {
 	<-sigCh
 
 	logger.Info("shutting down...")
-	if rt != nil {
-		rt.Stop()
-	}
-	if adbRt != nil {
-		adbRt.Stop()
-	}
-	if serialSSHRt != nil {
-		serialSSHRt.Stop()
+	for _, t := range tunnels {
+		t.Stop()
 	}
 	pm.Shutdown()
+}
+
+// startReverseTunnel builds and starts one tunnel, dispatching on Kind:
+// "serial_ssh" auto-derives per-COM-port forwards, everything else is a
+// single remote_port -> target_host:local_port forward. Returns nil when the
+// tunnel could not be started (e.g. serial_ssh with no forwardable ports).
+func startReverseTunnel(name string, rtCfg *config.ReverseTunnelConfig, cfg *config.Config, logger *slog.Logger) *tunnel.ReverseTunnel {
+	if rtCfg.Kind == "serial_ssh" {
+		forwards := buildSerialSSHForwards(cfg, logger)
+		if len(forwards) == 0 {
+			logger.Warn("serial_ssh tunnel configured but no forwardable COM ports in cfg.ports", "name", name)
+			return nil
+		}
+		t := tunnel.NewMulti(rtCfg, &cfg.SSH, forwards, logger)
+		t.Start()
+		logger.Info("serial SSH reverse tunnel started",
+			"name", name,
+			"host", rtCfg.Host,
+			"bind_address", rtCfg.BindAddress,
+			"forwards", len(forwards))
+		return t
+	}
+
+	t := tunnel.New(rtCfg, &cfg.SSH, logger)
+	t.Start()
+	logger.Info("reverse tunnel started",
+		"name", name,
+		"host", rtCfg.Host,
+		"remote_port", rtCfg.RemotePort,
+		"mode", rtCfg.Mode,
+		"target_host", rtCfg.TargetHost,
+		"target_port", rtCfg.LocalPort)
+	return t
 }
