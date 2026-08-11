@@ -244,6 +244,23 @@ go build -o serial-gateway-test.exe ./cmd/serial-gateway/
 
 Never reuse the live process for debug runs when isolation matters.
 
+**Verify a YAML parses before you rely on it** (catches indentation / schema typos without starting a server). The `internal/config` package can only be imported from inside the module, so a throwaway checker must live in the repo — not in `%TEMP%`:
+
+```bash
+mkdir -p ./tmpcheck && cat > ./tmpcheck/main.go <<'EOF'
+package main
+import ("fmt"; "github.com/zisen123/serialgateway/internal/config")
+func main() {
+ c, err := config.Load("serial-gateway.yaml")   // or the test yaml
+ if err != nil { fmt.Println("ERR:", err); return }
+ for i, t := range c.ReverseTunnels {
+  fmt.Printf("[%d] name=%q kind=%q remote=%d target=%s:%d bind=%s mode=%s\n", i, t.Name, t.Kind, t.RemotePort, t.TargetHost, t.LocalPort, t.BindAddress, t.Mode)
+ }
+}
+EOF
+go run ./tmpcheck/; rm -rf ./tmpcheck
+```
+
 ### 4. Start the isolated instance
 
 ```powershell
@@ -348,6 +365,43 @@ Common temporary artifacts to clean up when done:
 - `serial-gateway-test.exe`
 - `gateway-test-ssh.log`
 - `gateway-test-lan-ssh.log`
+- `serial-gateway-test-42.yaml` (or whatever isolated test config you wrote)
+
+## Promote a config change to the live gateway (only when explicitly asked)
+
+Editing `serial-gateway.yaml` does **not** affect the running gateway — it must be restarted. This is the one time you touch the live process, so **do it only on an explicit request**, and warn that it briefly drops all serial-SSH / tunnel / ADB connections. Order matters:
+
+**1. Recover exactly how the live process was started** (so you relaunch it identically):
+
+```powershell
+$p = Get-CimInstance Win32_Process -Filter 'ProcessId = <live-pid>'
+$p.ExecutablePath   # e.g. C:\Users\yicong.wu\Documents\SerialGateway\serial-gateway.exe
+$p.CommandLine      # e.g. "...\serial-gateway.exe" --config serial-gateway.yaml
+```
+
+**2. Stop → rebuild → start, in that order.** The running binary is often *older than the config feature* you just added, so a rebuild is mandatory — and Windows **locks the running `.exe`**, so you cannot rebuild until it's stopped. Stopping first also frees the COM ports and HTTP port for the new instance.
+
+```powershell
+Stop-Process -Id <live-pid> -Force
+for ($i=0; $i -lt 20; $i++){ if(-not (Get-Process -Id <live-pid> -ErrorAction SilentlyContinue)){break}; Start-Sleep -Milliseconds 250 }
+```
+```powershell
+go build -o serial-gateway.exe ./cmd/serial-gateway/   # now the exe is unlocked
+```
+```powershell
+Start-Process -FilePath "C:\Users\yicong.wu\Documents\SerialGateway\serial-gateway.exe" `
+  -ArgumentList @("--config","serial-gateway.yaml") `
+  -WorkingDirectory "C:\Users\yicong.wu\Documents\SerialGateway" -PassThru -WindowStyle Hidden
+```
+
+The config path is **relative**, so `-WorkingDirectory` must be the repo root or `Load` reads the wrong file.
+
+**3. Verify it came back up** — HTTP answers, and `gateway.log` shows every expected tunnel `connected` + `forwarding`, plus each COM port's `SSH server listening` / `started mapping`:
+
+```powershell
+Invoke-RestMethod http://localhost:18080/api/config -TimeoutSec 5
+Get-Content gateway.log -Tail 40 | Select-String 'reverse tunnel started|serial SSH reverse|forwarding|connected|listening|error|warn'
+```
 
 ## Repo-specific lessons captured from this debug session
 
@@ -359,3 +413,8 @@ Common temporary artifacts to clean up when done:
 - **The gateway log's `remote=0.0.0.0:<port>` is the requested bind, not the effective one.** If the server lacks `GatewayPorts yes`, sshd silently rebinds to `127.0.0.1` with no error. Always verify the real bind with `ss -tlnp | grep ':<port> '` on the server.
 - Interpreting a serial-port probe: `Permanently added '[127.0.0.1]:<port>' (ED25519)` + `Permission denied (password).` = full path success (host key negotiated, only auth withheld).
 - When driving remote checks through the Bash tool via `ssh host "cmd"`, filter OpenSSH's post-quantum warning (`grep -v "WARNING\|store now\|openssh.com/pq"`), and clean up probe-written known_hosts with `ssh-keygen -R "[127.0.0.1]:<port>"`. `sudo sshd -T` won't work under `BatchMode=yes` (password prompt) — infer GatewayPorts from the actual bind instead.
+- The `reverse_tunnels:` list is the right vehicle for an ad-hoc "expose this host:port" test (Pattern E): blank the three named tunnels with `host: ""`, keep `ports: []`, declare one entry. `remote_port` is manual — a good self-documenting convention is `10000 + last octet` of the target IP (same-/24 assumption).
+- `Test-NetConnection` proved unreliable here (hung, no output under `-NoProfile`). A `TcpClient` with `WaitOne(<ms>)` gives a fast, deterministic yes/no. Also check `Get-NetIPAddress` — an IP like `192.168.42.1` may be a peer, while this host is `192.168.42.4`.
+- Applying a `serial-gateway.yaml` change to the live gateway = **stop → rebuild `serial-gateway.exe` → start** (in that order). The running binary is usually older than the just-added feature, and Windows locks the running exe so you can't rebuild until it's stopped. Recover the exact relaunch command with `Get-CimInstance Win32_Process -Filter 'ProcessId=<pid>'` and start with `-WorkingDirectory <repo root>` (the `--config` path is relative). Only do this when the user explicitly asks — it drops all live connections briefly.
+- Restart sanity: after relaunch the log should show one `connected`/`forwarding` per tunnel (named ones + every `reverse_tunnels` entry) and every COM port's `SSH server listening` + `started mapping`. A `reverse_tunnels` entry appears as `reverse tunnel started name=<name> ...`.
+- Git note: this repo may auto-commit working changes between turns, so code edits can silently move from "modified" to a new commit (`git log --oneline`). If files you edited stop showing in `git status`, check the log before assuming the edits were lost — confirm by grepping the symbol on disk.
