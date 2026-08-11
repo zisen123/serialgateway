@@ -65,6 +65,46 @@ serial_ssh_tunnel:
   private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
   bind_address: "0.0.0.0"
 
+# Arbitrary number of extra reverse tunnels, on top of the three named ones
+# above. Each entry is a single remote_port -> target_host:local_port forward
+# by default; set kind: "serial_ssh" to auto-derive per-COM-port forwards like
+# serial_ssh_tunnel. Entries with an empty host are skipped. `name` is only used
+# for logging. Leave the list empty (or omit it) to add none.
+reverse_tunnels:
+  # Convention for reversing host-side SSH: remote_port = 10000 + last octet of
+  # target_host (all targets live in 192.168.42.x). So 192.168.42.1 -> 10001,
+  # .5 -> 10005. Ports stay manual; this rule just keeps them collision-free and
+  # readable as you add more IPs. On the remote host:
+  #   `ssh -p 10001 <user>@127.0.0.1`  reaches 192.168.42.1
+  - name: "host-192.168.42.1-ssh"
+    host: "172.25.4.7"
+    port: 22
+    user: "yicong.wu"
+    private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
+    remote_port: 10001
+    target_host: "192.168.42.1"
+    local_port: 22
+    bind_address: "127.0.0.1"
+  # - name: "extra-http"
+  #   host: "172.25.4.7"
+  #   port: 22
+  #   user: "yicong.wu"
+  #   private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
+  #   remote_port: 19090
+  #   target_host: "192.168.1.50"
+  #   local_port: 8080
+  #   bind_address: "127.0.0.1"
+  # - name: "board-ssh"
+  #   host: "172.25.4.7"
+  #   user: "yicong.wu"
+  #   private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
+  #   remote_port: 10022
+  #   target_host: "192.168.1.10"
+  #   local_port: 22
+  #   mode: "ssh_proxy"
+  #   target_user: "root"
+  #   target_password: "<board-password>"
+
 logging:
   level: "info"
   format: "text"

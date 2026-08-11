@@ -114,3 +114,75 @@ reverse_tunnel:
 		t.Errorf("expected reverse tunnel target password boardpw, got %q", cfg.ReverseTunnel.TargetPassword)
 	}
 }
+
+func TestLoadReverseTunnelsList(t *testing.T) {
+	content := `
+reverse_tunnels:
+  - name: "extra-http"
+    host: "relay.example.com"
+    remote_port: 19090
+    target_host: "192.168.1.50"
+    local_port: 8080
+  - name: "board-ssh"
+    host: "relay.example.com"
+    remote_port: 10022
+    local_port: 22
+    kind: "serial_ssh"
+  - host: ""
+    remote_port: 9999
+`
+	tmp, err := os.CreateTemp("", "config-list-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.WriteString(content); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmp.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(tmp.Name())
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if len(cfg.ReverseTunnels) != 3 {
+		t.Fatalf("expected 3 reverse_tunnels entries, got %d", len(cfg.ReverseTunnels))
+	}
+
+	first := cfg.ReverseTunnels[0]
+	if first.Name != "extra-http" || first.RemotePort != 19090 || first.LocalPort != 8080 {
+		t.Errorf("unexpected first tunnel: %+v", first)
+	}
+	// Common defaults applied to entries with a host.
+	if first.Port != 22 {
+		t.Errorf("expected default port 22, got %d", first.Port)
+	}
+	if first.User != "root" {
+		t.Errorf("expected default user root, got %q", first.User)
+	}
+	if first.Mode != "tcp" {
+		t.Errorf("expected default mode tcp, got %q", first.Mode)
+	}
+	if first.BindAddress != "0.0.0.0" {
+		t.Errorf("expected default bind_address 0.0.0.0, got %q", first.BindAddress)
+	}
+	if first.TargetHost != "192.168.1.50" {
+		t.Errorf("expected explicit target host preserved, got %q", first.TargetHost)
+	}
+
+	// serial_ssh entries must NOT get a localhost TargetHost default (forwards
+	// derive their own target).
+	if cfg.ReverseTunnels[1].Kind != "serial_ssh" {
+		t.Errorf("expected kind serial_ssh, got %q", cfg.ReverseTunnels[1].Kind)
+	}
+	if cfg.ReverseTunnels[1].TargetHost != "" {
+		t.Errorf("expected serial_ssh entry to leave target_host empty, got %q", cfg.ReverseTunnels[1].TargetHost)
+	}
+
+	// Entries with an empty host are left untouched (skipped at startup).
+	if cfg.ReverseTunnels[2].Port != 0 {
+		t.Errorf("expected empty-host entry to keep zero port, got %d", cfg.ReverseTunnels[2].Port)
+	}
+}
