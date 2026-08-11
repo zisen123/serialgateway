@@ -64,6 +64,21 @@ func main() {
 			"target_port", cfg.AdbReverseTunnel.LocalPort)
 	}
 
+	var serialSSHRt *tunnel.ReverseTunnel
+	if cfg.SerialSSHTunnel.Host != "" {
+		forwards := buildSerialSSHForwards(cfg, logger)
+		if len(forwards) == 0 {
+			logger.Warn("serial_ssh_tunnel configured but no forwardable COM ports in cfg.ports")
+		} else {
+			serialSSHRt = tunnel.NewMulti(&cfg.SerialSSHTunnel, &cfg.SSH, forwards, logger)
+			serialSSHRt.Start()
+			logger.Info("serial SSH reverse tunnel started",
+				"host", cfg.SerialSSHTunnel.Host,
+				"bind_address", cfg.SerialSSHTunnel.BindAddress,
+				"forwards", len(forwards))
+		}
+	}
+
 	gw := sgwhttp.NewGatewayWithManager(cfg, pm, logger)
 	go gw.StartHTTP()
 
@@ -79,6 +94,9 @@ func main() {
 	}
 	if adbRt != nil {
 		adbRt.Stop()
+	}
+	if serialSSHRt != nil {
+		serialSSHRt.Stop()
 	}
 	pm.Shutdown()
 }

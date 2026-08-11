@@ -17,21 +17,50 @@ import (
 	gatewayssh "github.com/zisen123/serialgateway/internal/ssh"
 )
 
-type ReverseTunnel struct {
-	cfg    *config.ReverseTunnelConfig
-	sshCfg *config.SSHConfig
-	logger *slog.Logger
-	stopCh chan struct{}
-	once   sync.Once
-	wg     sync.WaitGroup
+// ForwardSpec describes one remote listener -> local target forwarding rule.
+type ForwardSpec struct {
+	Label      string // e.g. "COM3", for logging only
+	RemotePort int    // port to bind on the remote server (BindAddress:RemotePort)
+	TargetHost string // host to dial from the gateway side
+	TargetPort int    // port to dial from the gateway side
 }
 
+type ReverseTunnel struct {
+	cfg      *config.ReverseTunnelConfig
+	sshCfg   *config.SSHConfig
+	forwards []ForwardSpec
+	logger   *slog.Logger
+	stopCh   chan struct{}
+	once     sync.Once
+	wg       sync.WaitGroup
+}
+
+// New builds a single-forward tunnel from cfg, preserving the legacy behavior of
+// reverse_tunnel / adb_reverse_tunnel (one remote_port -> target_host:local_port).
 func New(cfg *config.ReverseTunnelConfig, sshCfg *config.SSHConfig, logger *slog.Logger) *ReverseTunnel {
 	return &ReverseTunnel{
 		cfg:    cfg,
 		sshCfg: sshCfg,
+		forwards: []ForwardSpec{{
+			RemotePort: cfg.RemotePort,
+			TargetHost: cfg.TargetHost,
+			TargetPort: cfg.LocalPort,
+		}},
 		logger: logger.With("component", "tunnel"),
 		stopCh: make(chan struct{}),
+	}
+}
+
+// NewMulti builds a tunnel that opens N remote listeners over one SSH connection.
+// cfg supplies only the connection fields (host/port/user/auth/bind_address);
+// forwards supplies the per-port remote/target mapping.
+func NewMulti(cfg *config.ReverseTunnelConfig, sshCfg *config.SSHConfig, forwards []ForwardSpec, logger *slog.Logger) *ReverseTunnel {
+	return &ReverseTunnel{
+		cfg:      cfg,
+		sshCfg:   sshCfg,
+		forwards: forwards,
+		logger:   logger.With("component", "tunnel"),
+		stopCh:   make(chan struct{}),
 	}
 }
 
@@ -104,30 +133,16 @@ func (t *ReverseTunnel) connect() error {
 	}
 	defer client.Close()
 
-	t.logger.Info("connected", "addr", addr)
+	t.logger.Info("connected", "addr", addr, "forwards", len(t.forwards))
 
-	if err := t.killRemotePortHolder(client); err != nil {
-		t.logger.Warn("failed to clear remote port", "port", t.cfg.RemotePort, "error", err)
+	// Clear residual holders on all remote ports before opening any listener.
+	if err := t.killRemotePortHolders(client, t.remotePorts()); err != nil {
+		t.logger.Warn("failed to clear one or more remote ports", "error", err)
 	}
 
-	remoteAddr := fmt.Sprintf("%s:%d", t.cfg.BindAddress, t.cfg.RemotePort)
-	listener, err := client.Listen("tcp", remoteAddr)
-	if err != nil {
-		t.logger.Warn("listen failed, retrying after clearing port", "error", err)
-		time.Sleep(500 * time.Millisecond)
-		_ = t.killRemotePortHolder(client)
-		time.Sleep(500 * time.Millisecond)
-		listener, err = client.Listen("tcp", remoteAddr)
-		if err != nil {
-			return fmt.Errorf("remote listen on %s: %w", remoteAddr, err)
-		}
-	}
-	defer listener.Close()
-
-	t.logger.Info("forwarding", "remote", remoteAddr, "mode", t.cfg.Mode, "target_host", t.cfg.TargetHost, "target_port", t.cfg.LocalPort)
-
+	// ssh_proxy is only valid for the single-forward legacy path (reverse_tunnel).
 	var proxy *ProxyBridge
-	if t.cfg.Mode == "ssh_proxy" {
+	if len(t.forwards) == 1 && t.cfg.Mode == "ssh_proxy" {
 		if t.sshCfg == nil || t.sshCfg.Auth.Type != "password" {
 			return fmt.Errorf("ssh_proxy mode currently requires gateway ssh.auth.type=password")
 		}
@@ -138,98 +153,156 @@ func (t *ReverseTunnel) connect() error {
 		proxy = NewProxyBridge(t.cfg, t.sshCfg, hostKeyPEM, t.logger)
 	}
 
-	acceptCh := make(chan net.Conn, 8)
-	go func() {
-		for {
-			remote, err := listener.Accept()
-			if err != nil {
-				select {
-				case <-t.stopCh:
-				default:
-					t.logger.Error("accept error", "error", err)
-				}
-				close(acceptCh)
-				return
-			}
-			acceptCh <- remote
+	// Open one remote listener per forward spec, all over the same client.
+	type listenerWithSpec struct {
+		ln   net.Listener
+		spec ForwardSpec
+	}
+	var listeners []listenerWithSpec
+	defer func() {
+		for _, l := range listeners {
+			_ = l.ln.Close()
 		}
 	}()
+
+	for _, f := range t.forwards {
+		remoteAddr := fmt.Sprintf("%s:%d", t.cfg.BindAddress, f.RemotePort)
+		ln, lerr := client.Listen("tcp", remoteAddr)
+		if lerr != nil {
+			t.logger.Warn("listen failed, retrying after clearing port", "port", f.RemotePort, "label", f.Label, "error", lerr)
+			time.Sleep(500 * time.Millisecond)
+			_ = t.killRemotePortHolders(client, []int{f.RemotePort})
+			time.Sleep(500 * time.Millisecond)
+			ln, lerr = client.Listen("tcp", remoteAddr)
+			if lerr != nil {
+				return fmt.Errorf("remote listen on %s: %w", remoteAddr, lerr)
+			}
+		}
+		t.logger.Info("forwarding", "remote", remoteAddr, "mode", t.cfg.Mode, "target_host", f.TargetHost, "target_port", f.TargetPort, "label", f.Label)
+		listeners = append(listeners, listenerWithSpec{ln: ln, spec: f})
+	}
+
+	type acceptedConn struct {
+		conn net.Conn
+		spec ForwardSpec
+	}
+	acceptCh := make(chan acceptedConn, 8)
+	// errCh signals that a listener died so the whole tunnel reconnects.
+	errCh := make(chan error, len(listeners))
+
+	for _, l := range listeners {
+		l := l
+		t.wg.Add(1)
+		go func() {
+			defer t.wg.Done()
+			for {
+				remote, aerr := l.ln.Accept()
+				if aerr != nil {
+					select {
+					case <-t.stopCh:
+					default:
+						t.logger.Error("accept error", "port", l.spec.RemotePort, "label", l.spec.Label, "error", aerr)
+						errCh <- fmt.Errorf("listener %s (:%d) closed: %w", l.spec.Label, l.spec.RemotePort, aerr)
+					}
+					return
+				}
+				select {
+				case acceptCh <- acceptedConn{conn: remote, spec: l.spec}:
+				case <-t.stopCh:
+					remote.Close()
+					return
+				}
+			}
+		}()
+	}
 
 	for {
 		select {
 		case <-t.stopCh:
 			t.logger.Info("stopping")
 			return nil
-		case remote, ok := <-acceptCh:
-			if !ok {
-				return fmt.Errorf("listener closed unexpectedly")
-			}
+		case err := <-errCh:
+			// Any listener failure tears down the whole tunnel and reconnects.
+			return fmt.Errorf("remote listener failed: %w", err)
+		case ac := <-acceptCh:
 			t.wg.Add(1)
-			go func() {
+			go func(ac acceptedConn) {
 				defer t.wg.Done()
 				if proxy != nil {
-					proxy.Serve(remote)
+					proxy.Serve(ac.conn)
 					return
 				}
-				t.forward(remote)
-			}()
+				t.forward(ac.conn, ac.spec)
+			}(ac)
 		}
 	}
 }
 
-func (t *ReverseTunnel) killRemotePortHolder(client *gossh.Client) error {
-	session, err := client.NewSession()
-	if err != nil {
-		return fmt.Errorf("new session: %w", err)
+// remotePorts returns the remote listen ports across all forwards.
+func (t *ReverseTunnel) remotePorts() []int {
+	out := make([]int, 0, len(t.forwards))
+	for _, f := range t.forwards {
+		out = append(out, f.RemotePort)
 	}
-	defer session.Close()
+	return out
+}
 
-	port := fmt.Sprintf("%d", t.cfg.RemotePort)
-	findCmd := fmt.Sprintf(`ss -tlnp 2>/dev/null | grep ':%s ' | grep -oP 'pid=\\K[0-9]+' | sort -u`, port)
+// killRemotePortHolders clears residual processes holding each given remote port
+// on the SSH server. A failure on one port is logged and skipped, not fatal.
+func (t *ReverseTunnel) killRemotePortHolders(client *gossh.Client, ports []int) error {
+	var firstErr error
+	for _, p := range ports {
+		port := fmt.Sprintf("%d", p)
+		findCmd := fmt.Sprintf(`ss -tlnp 2>/dev/null | grep ':%s ' | grep -oP 'pid=\\K[0-9]+' | sort -u`, port)
 
-	out, err := session.CombinedOutput(findCmd)
-	if err != nil {
-		return fmt.Errorf("find remote port holder: %w", err)
-	}
-
-	pids := strings.Fields(string(out))
-	if len(pids) == 0 {
-		return nil
-	}
-
-	for _, pid := range pids {
-		t.logger.Info("killing residual remote process", "port", port, "pid", pid)
-		killSession, err := client.NewSession()
+		session, err := client.NewSession()
 		if err != nil {
-			t.logger.Warn("open session to kill failed", "pid", pid, "error", err)
+			t.logger.Warn("open session to find port holder failed", "port", port, "error", err)
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
-		_ = killSession.Run(fmt.Sprintf("kill %s 2>/dev/null || true", pid))
-		killSession.Close()
-
-		time.Sleep(200 * time.Millisecond)
-		killSession, err = client.NewSession()
+		out, err := session.CombinedOutput(findCmd)
+		session.Close()
 		if err != nil {
+			t.logger.Warn("find remote port holder failed", "port", port, "error", err)
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
-		_ = killSession.Run(fmt.Sprintf("kill -0 %s 2>/dev/null && kill -9 %s 2>/dev/null || true", pid, pid))
-		killSession.Close()
+
+		for _, pid := range strings.Fields(string(out)) {
+			t.logger.Info("killing residual remote process", "port", port, "pid", pid)
+			killSession, err := client.NewSession()
+			if err != nil {
+				t.logger.Warn("open session to kill failed", "pid", pid, "error", err)
+				continue
+			}
+			_ = killSession.Run(fmt.Sprintf("kill %s 2>/dev/null || true", pid))
+			killSession.Close()
+
+			time.Sleep(200 * time.Millisecond)
+			killSession, err = client.NewSession()
+			if err != nil {
+				continue
+			}
+			_ = killSession.Run(fmt.Sprintf("kill -0 %s 2>/dev/null && kill -9 %s 2>/dev/null || true", pid, pid))
+			killSession.Close()
+		}
 	}
 
-	return nil
+	return firstErr
 }
 
-func (t *ReverseTunnel) targetAddr() string {
-	return net.JoinHostPort(t.cfg.TargetHost, strconv.Itoa(t.cfg.LocalPort))
-}
-
-func (t *ReverseTunnel) forward(remote net.Conn) {
+func (t *ReverseTunnel) forward(remote net.Conn, spec ForwardSpec) {
 	defer remote.Close()
 
-	targetAddr := t.targetAddr()
+	targetAddr := net.JoinHostPort(spec.TargetHost, strconv.Itoa(spec.TargetPort))
 	local, err := net.DialTimeout("tcp", targetAddr, 5*time.Second)
 	if err != nil {
-		t.logger.Error("dial target failed", "addr", targetAddr, "error", err)
+		t.logger.Error("dial target failed", "addr", targetAddr, "label", spec.Label, "error", err)
 		return
 	}
 	defer local.Close()

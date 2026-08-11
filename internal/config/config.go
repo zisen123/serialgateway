@@ -50,6 +50,13 @@ type PortConfig struct {
 }
 
 type ReverseTunnelConfig struct {
+	// Name is a human-readable label used only for logging (defaults to a
+	// positional name for reverse_tunnels[] entries when left empty).
+	Name string `yaml:"name" json:"name"`
+	// Kind selects behavior: "" / "tcp" (default) is a single remote_port ->
+	// target_host:local_port forward; "serial_ssh" auto-derives one forward per
+	// configured COM port from ports + ssh.base_port (like serial_ssh_tunnel).
+	Kind             string `yaml:"kind"                    json:"kind"`
 	Host             string `yaml:"host"                    json:"host"`
 	Port             int    `yaml:"port"                    json:"port"`
 	User             string `yaml:"user"                    json:"user"`
@@ -90,7 +97,18 @@ type Config struct {
 	Reconnect        ReconnectConfig     `yaml:"reconnect" json:"reconnect"`
 	ReverseTunnel    ReverseTunnelConfig `yaml:"reverse_tunnel" json:"reverse_tunnel"`
 	AdbReverseTunnel ReverseTunnelConfig `yaml:"adb_reverse_tunnel" json:"adb_reverse_tunnel"`
-	FileRecording    FileRecordingConfig `yaml:"file_recording" json:"file_recording"`
+	// SerialSSHTunnel exposes every configured COM port's serial-SSH server on the
+	// remote host over one connection. Only the connection fields (host/port/user/
+	// password/private_key_file/bind_address) are used; the per-port remote/target/
+	// local ports are auto-derived from Ports + SSH.BasePort at startup, so those
+	// fields on this struct are ignored.
+	SerialSSHTunnel  ReverseTunnelConfig `yaml:"serial_ssh_tunnel" json:"serial_ssh_tunnel"`
+	// ReverseTunnels holds an arbitrary number of additional reverse tunnels,
+	// on top of the three named ones above. Each entry is a single-forward
+	// tunnel by default; set kind: "serial_ssh" to auto-derive per-COM-port
+	// forwards. Entries with an empty host are skipped.
+	ReverseTunnels []ReverseTunnelConfig `yaml:"reverse_tunnels" json:"reverse_tunnels"`
+	FileRecording  FileRecordingConfig   `yaml:"file_recording" json:"file_recording"`
 	Logging          LoggingConfig       `yaml:"logging" json:"logging"`
 	Ports            []PortConfig        `yaml:"ports" json:"ports"`
 }
@@ -209,6 +227,45 @@ func applyDefaults(cfg *Config) {
 		}
 		if cfg.AdbReverseTunnel.BindAddress == "" {
 			cfg.AdbReverseTunnel.BindAddress = "0.0.0.0"
+		}
+	}
+
+	if cfg.SerialSSHTunnel.Host != "" {
+		if cfg.SerialSSHTunnel.Port == 0 {
+			cfg.SerialSSHTunnel.Port = 22
+		}
+		if cfg.SerialSSHTunnel.User == "" {
+			cfg.SerialSSHTunnel.User = "root"
+		}
+		if cfg.SerialSSHTunnel.BindAddress == "" {
+			cfg.SerialSSHTunnel.BindAddress = "0.0.0.0"
+		}
+		// RemotePort/LocalPort/TargetHost/Mode are intentionally left unset:
+		// per-port forwards are derived from cfg.Ports + cfg.SSH.BasePort at startup.
+	}
+
+	for i := range cfg.ReverseTunnels {
+		rt := &cfg.ReverseTunnels[i]
+		if rt.Host == "" {
+			continue
+		}
+		if rt.Port == 0 {
+			rt.Port = 22
+		}
+		if rt.User == "" {
+			rt.User = "root"
+		}
+		if rt.Mode == "" {
+			rt.Mode = "tcp"
+		}
+		if rt.BindAddress == "" {
+			rt.BindAddress = "0.0.0.0"
+		}
+		// serial_ssh entries derive TargetHost per forward; single-forward
+		// entries default it to localhost. RemotePort/LocalPort have no
+		// meaningful default for generic tunnels and must be set explicitly.
+		if rt.Kind != "serial_ssh" && rt.TargetHost == "" {
+			rt.TargetHost = "127.0.0.1"
 		}
 	}
 

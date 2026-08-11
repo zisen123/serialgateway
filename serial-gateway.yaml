@@ -29,11 +29,11 @@ reverse_tunnel:
   port: 22
   user: "yicong.wu"
   private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
-  # Port exposed on the remote SSH server for reaching the LAN host's SSH service
-  remote_port: 10022
-  # LAN host reached through the tunnel (the cvitek board)
-  target_host: "192.168.1.10"
-  local_port: 22
+  # Port exposed on the remote SSH server for reaching the local gateway HTTP API
+  remote_port: 18080
+  # Forward to the local gateway HTTP API
+  target_host: "127.0.0.1"
+  local_port: 18080
   # tcp = raw TCP forwarding, ssh_proxy = gateway terminates SSH with stable host_key
   mode: "tcp"
   # Used only in ssh_proxy mode
@@ -51,6 +51,20 @@ adb_reverse_tunnel:
   local_port: 5037
   bind_address: "127.0.0.1"
 
+# Expose every COM port's serial-SSH server on the remote host over one
+# connection, using the SAME port numbers as locally (COM3 -> 2203, COM25 -> 2225).
+# Ports are auto-derived from `ports` + `ssh.base_port`; per-port fields are ignored.
+# On the remote host: `ssh -p 2203 <user>@<host>` reaches COM3.
+# bind_address 0.0.0.0 requires `GatewayPorts yes` in the server's sshd_config;
+# otherwise sshd rewrites the bind to 127.0.0.1 and the LAN can't reach it.
+# Set host: "" to disable.
+serial_ssh_tunnel:
+  host: "172.25.4.7"
+  port: 22
+  user: "yicong.wu"
+  private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
+  bind_address: "0.0.0.0"
+
 logging:
   level: "info"
   format: "text"
@@ -67,4 +81,6 @@ ports:
   - device: "COM25"
     baudrate: 115200
   - device: "COM21"
+    baudrate: 115200
+  - device: "COM15"
     baudrate: 115200
