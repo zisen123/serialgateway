@@ -42,7 +42,7 @@ func main() {
 
 	// Collect every configured tunnel — the three named legacy fields plus any
 	// entries in the reverse_tunnels list — and start them uniformly.
-	var tunnels []*tunnel.ReverseTunnel
+	var tunnels []tunnel.Tunnel
 	start := func(name string, rtCfg *config.ReverseTunnelConfig) {
 		if t := startReverseTunnel(name, rtCfg, cfg, logger); t != nil {
 			tunnels = append(tunnels, t)
@@ -91,7 +91,20 @@ func main() {
 // "serial_ssh" auto-derives per-COM-port forwards, everything else is a
 // single remote_port -> target_host:local_port forward. Returns nil when the
 // tunnel could not be started (e.g. serial_ssh with no forwardable ports).
-func startReverseTunnel(name string, rtCfg *config.ReverseTunnelConfig, cfg *config.Config, logger *slog.Logger) *tunnel.ReverseTunnel {
+func startReverseTunnel(name string, rtCfg *config.ReverseTunnelConfig, cfg *config.Config, logger *slog.Logger) tunnel.Tunnel {
+	if rtCfg.Kind == "local_forward" {
+		t := tunnel.NewLocalForward(rtCfg, logger)
+		t.Start()
+		logger.Info("local forward tunnel started",
+			"name", name,
+			"host", rtCfg.Host,
+			"local_bind", rtCfg.BindAddress,
+			"local_port", rtCfg.LocalPort,
+			"target_host", rtCfg.TargetHost,
+			"target_port", rtCfg.RemotePort)
+		return t
+	}
+
 	if rtCfg.Kind == "serial_ssh" {
 		forwards := buildSerialSSHForwards(cfg, logger)
 		if len(forwards) == 0 {

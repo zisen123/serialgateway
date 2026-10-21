@@ -5,3 +5,5 @@ host_key*
 gateway.log
 .claude/worktrees/
 serial_logs/
+
+tunnel-ports.exe

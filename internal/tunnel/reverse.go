@@ -135,6 +135,12 @@ func (t *ReverseTunnel) connect() error {
 
 	t.logger.Info("connected", "addr", addr, "forwards", len(t.forwards))
 
+	// Detect half-dead TCP connections: without keepalives a silently-dropped
+	// link leaves the tunnel "connected" forever while every forward is dead.
+	go keepAliveMonitor(client, t.stopCh, t.logger, func(err error) {
+		t.logger.Warn("ssh keepalive failed, connection likely dead", "error", err)
+	})
+
 	// Clear residual holders on all remote ports before opening any listener.
 	if err := t.killRemotePortHolders(client, t.remotePorts()); err != nil {
 		t.logger.Warn("failed to clear one or more remote ports", "error", err)

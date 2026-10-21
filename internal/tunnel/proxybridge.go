@@ -51,6 +51,12 @@ func (b *ProxyBridge) Serve(conn net.Conn) {
 		return supplied == password
 	}
 	srv.Handler = b.bridgeSession
+	// HandleConn (unlike Serve) does not call the unexported ensureHandlers, so
+	// ChannelHandlers stays nil and every channel is rejected with
+	// "unsupported channel type". Register the default session handler explicitly.
+	srv.ChannelHandlers = map[string]gliderssh.ChannelHandler{
+		"session": gliderssh.DefaultSessionHandler,
+	}
 	srv.HandleConn(conn)
 }
 

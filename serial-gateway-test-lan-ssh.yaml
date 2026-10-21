@@ -24,7 +24,7 @@ reconnect:
   discard_input_on_disconnect: true
 
 reverse_tunnel:
-  host: "172.25.4.7"
+  host: "10.80.38.24"
   port: 22
   user: "yicong.wu"
   private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"

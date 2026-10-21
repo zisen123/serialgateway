@@ -97,7 +97,7 @@ cscript //nologo run.vbs
 :: Stop
 stop.bat
 
-:: Restart
+:: Restart — full flow: stop → clean stale server tunnel sessions → rebuild → start → verify
 restart.bat
 
 :: Check status
@@ -106,6 +106,29 @@ status.bat
 
 The executable reads `serial-gateway.yaml` from the working directory by
 default. Override with `--config <path>` and `--http-port <port>`.
+
+`restart.bat` wraps `restart-gateway.ps1`, which:
+1. Recovers and stops the live process.
+2. Runs `clean-tunnel-ports.ps1` — kills the server-side sshd sessions left
+   half-open by the old process (they hold the remote ports and make every
+   tunnel rebind fail with `ssh: tcpip-forward request denied by peer`), plus
+   stray non-session port holders (e.g. an auto-started `adb` server on 15037).
+   `-SkipClean` skips this when the server is unreachable.
+3. Rebuilds `serial-gateway.exe` (`-SkipBuild` to skip) and restarts it.
+4. Verifies HTTP, every remote forward in `gateway.log`, and the per-COM SSH
+   listeners; exits non-zero with the failing ports on any miss.
+
+Both scripts derive the tunnel host/ports from the config via
+`cmd/tunnel-ports` (built on demand into `tunnel-ports.exe`, gitignored) — the
+same `internal/config` parser the gateway itself uses. `clean-tunnel-ports.ps1`
+also runs standalone (`-DryRun` to preview kills). It only ever kills the SSH
+user's own `sshd: <user>@notty` sessions (tunnel-style; interactive `@pts`
+shells are never touched) and the probe connection shields itself by parent
+chain. Without root there is no way to attribute a session to a client IP (the
+session socket belongs to privileged sshd; `/proc` fd/environ are blocked), so
+with the gateway running it may kill live tunnel sessions — they re-establish
+within one retry interval (≤30s). In the restart flow the gateway is stopped
+first, so every `@notty` session killed is stale by definition.
 
 ## Test
 

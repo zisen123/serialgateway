@@ -46,7 +46,7 @@ ssh:
     type: "password"
 
 reverse_tunnel:
-  host: "172.25.4.7"
+  host: "10.80.38.24"
   port: 22
   user: "yicong.wu"
   private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
@@ -79,7 +79,7 @@ ssh:
     type: "password"
 
 reverse_tunnel:
-  host: "172.25.4.7"
+  host: "10.80.38.24"
   port: 22
   user: "yicong.wu"
   private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
@@ -125,7 +125,7 @@ Then the remote user connects to the gateway endpoint as usual, but the host key
 
 ```yaml
 serial_ssh_tunnel:
-  host: "172.25.4.7"
+  host: "10.80.38.24"
   port: 22
   user: "yicong.wu"
   private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
@@ -155,7 +155,7 @@ serial_ssh_tunnel:   { host: "" }
 
 reverse_tunnels:
   - name: "host-192.168.42.1-ssh"
-    host: "172.25.4.7"
+    host: "10.80.38.24"
     port: 22
     user: "yicong.wu"
     private_key_file: "C:/Users/yicong.wu/.ssh/id_ed25519"
@@ -231,7 +231,7 @@ For a LAN IP target, **avoid `Test-NetConnection`** — it can hang for a long t
 function TryTcp($h,$p){ $c=New-Object Net.Sockets.TcpClient; try{ $a=$c.BeginConnect($h,$p,$null,$null); if($a.AsyncWaitHandle.WaitOne(3000)){ $c.EndConnect($a); $c.Close(); return $true } else { $c.Close(); return $false } } catch { return $false } }
 Get-NetIPAddress -AddressFamily IPv4 | Select-Object IPAddress,InterfaceAlias   # is 192.168.42.1 a peer, or me?
 TryTcp '192.168.42.1' 22        # target SSH reachable from the gateway host?
-TryTcp '172.25.4.7'   22        # relay reachable?
+TryTcp '10.80.38.24'  22        # relay reachable?
 ```
 
 Confirm the target is reachable **before** probing: a later `Connection refused` on the tunnel then points at the target, not the tunnel path.
@@ -281,7 +281,7 @@ The Bash tool can drive the whole check in one shot by wrapping the remote comma
 
 ```bash
 ssh -i /c/Users/yicong.wu/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=no \
-    -o ConnectTimeout=8 yicong.wu@172.25.4.7 "<remote commands>" 2>&1 \
+    -o ConnectTimeout=8 yicong.wu@10.80.38.24 "<remote commands>" 2>&1 \
   | grep -v "WARNING\|store now\|may need to be upgraded\|openssh.com/pq"
 ```
 
@@ -403,6 +403,40 @@ Invoke-RestMethod http://localhost:18080/api/config -TimeoutSec 5
 Get-Content gateway.log -Tail 40 | Select-String 'reverse tunnel started|serial SSH reverse|forwarding|connected|listening|error|warn'
 ```
 
+## Non-interactive serial access from the server (validated 2026-08-25 on 10.80.38.24)
+
+The gateway SSH endpoints use **empty-password** auth (`ssh.auth.type: password` with no password set). Three proven non-interactive patterns, best first:
+
+**1. Pure stdin pipe (simplest one-liner).** With no TTY, OpenSSH (8.2) completes auth against the empty-password handler without consuming stdin — the whole pipe goes to the serial port. The session never EOFs (serial side never closes), so `timeout` is mandatory; `RC=124` is the normal exit:
+
+```bash
+printf "uname -a\n" | timeout 12 ssh -p 2225 -T -o StrictHostKeyChecking=no x@127.0.0.1
+# board echoes the line, then output, then prompt [root@cvitek]~#
+```
+
+**2. expect (clean exit, full control).** Server has `expect`; answer the password prompt with a bare `\r` (empty), then drive the board:
+
+```bash
+expect -c '
+set timeout 8
+spawn ssh -p 2225 -o StrictHostKeyChecking=no x@127.0.0.1
+expect -re {[Pp]assword} { send "\r" }
+sleep 1; send "pwd\r"; sleep 3
+expect -re {[#\$] $}; send "exit\r"; expect eof'
+```
+
+**3. paramiko (structured, per-read control).** Server has `python3` + `paramiko 2.6.0` — `connect(..., password="", allow_agent=False, look_for_keys=False)`, `invoke_shell()`, `chan.send("help\r")`, poll `chan.recv_ready()`. Best when output volume/timing matters.
+
+**No `sshpass` on the server** — don't reach for it.
+
+Cross-cutting rules:
+
+- **Append the newline yourself in every path** (`\n` in pipes/HTTP, `\r` in expect/paramiko `send`). Nothing auto-appends it; a command without a newline just sits in the board's line buffer.
+- **The board's line buffer persists across HTTP `/exec` requests.** A previous no-newline `cmd=` pollutes the next one (`uname` + later `uname -a` ⇒ `-sh: unameuname: not found`). Clean pattern: prefix a leading newline — `?cmd=%0A<cmd>%0A` — to flush any stale buffered line before the real command.
+- `/exec` SSE returns `data:` per line + `event: done` with `{"reason":"silence"|"timeout"}`; tune with `silence_timeout` / `max_duration` query params.
+- Gateway HTTP API itself is also reachable server-side via the `reverse_tunnel` at `127.0.0.1:18080` (`curl -N "http://127.0.0.1:18080/api/mappings/COM25/exec?cmd=...%0A"`). HTTP `/exec` is usually the better script target (structured SSE, no SSH handshake); the SSH path is for when only SSH is available.
+- **On 10.80.38.24 the serial ports bind `127.0.0.1` only** — `serial_ssh_tunnel` requested `0.0.0.0` but sshd has GatewayPorts off, so these endpoints are server-local; other LAN machines cannot reach 2203/2215/2221/2225 (the same pitfall as below, now confirmed on this host too).
+
 ## Repo-specific lessons captured from this debug session
 
 - A clean way to test `target_host` support is to run **two isolated configs**: one with `127.0.0.1`, one with the machine's LAN IP.
@@ -415,6 +449,10 @@ Get-Content gateway.log -Tail 40 | Select-String 'reverse tunnel started|serial 
 - When driving remote checks through the Bash tool via `ssh host "cmd"`, filter OpenSSH's post-quantum warning (`grep -v "WARNING\|store now\|openssh.com/pq"`), and clean up probe-written known_hosts with `ssh-keygen -R "[127.0.0.1]:<port>"`. `sudo sshd -T` won't work under `BatchMode=yes` (password prompt) — infer GatewayPorts from the actual bind instead.
 - The `reverse_tunnels:` list is the right vehicle for an ad-hoc "expose this host:port" test (Pattern E): blank the three named tunnels with `host: ""`, keep `ports: []`, declare one entry. `remote_port` is manual — a good self-documenting convention is `10000 + last octet` of the target IP (same-/24 assumption).
 - `Test-NetConnection` proved unreliable here (hung, no output under `-NoProfile`). A `TcpClient` with `WaitOne(<ms>)` gives a fast, deterministic yes/no. Also check `Get-NetIPAddress` — an IP like `192.168.42.1` may be a peer, while this host is `192.168.42.4`.
-- Applying a `serial-gateway.yaml` change to the live gateway = **stop → rebuild `serial-gateway.exe` → start** (in that order). The running binary is usually older than the just-added feature, and Windows locks the running exe so you can't rebuild until it's stopped. Recover the exact relaunch command with `Get-CimInstance Win32_Process -Filter 'ProcessId=<pid>'` and start with `-WorkingDirectory <repo root>` (the `--config` path is relative). Only do this when the user explicitly asks — it drops all live connections briefly.
-- Restart sanity: after relaunch the log should show one `connected`/`forwarding` per tunnel (named ones + every `reverse_tunnels` entry) and every COM port's `SSH server listening` + `started mapping`. A `reverse_tunnels` entry appears as `reverse tunnel started name=<name> ...`.
+- Applying a `serial-gateway.yaml` change to the live gateway = **stop → rebuild `serial-gateway.exe` → start** (in that order). The running binary is usually older than the just-added feature, and Windows locks the running exe so you can't rebuild until it's stopped. Recover the exact relaunch command with `Get-CimInstance Win32_Process -Filter 'ProcessId=<pid>'` and start with `-WorkingDirectory <repo root>` (the `--config` path is relative). Only do this when the user explicitly asks — it drops all live connections briefly. **This whole flow is now automated: run `restart.bat` / `restart-gateway.ps1` (stop → clean stale server sessions → rebuild → start → verify) instead of doing it by hand.**
+- Restart sanity: after relaunch the log should show one `connected`/`forwarding` per tunnel (named ones + every `reverse_tunnels` entry) and every COM port's `SSH server listening` + `started mapping`. A `reverse_tunnels` entry appears as `reverse tunnel started name=<name> ...`. `restart-gateway.ps1` performs these checks automatically and exits non-zero with the failing ports.
+- **`ssh: tcpip-forward request denied by peer` means the remote port is already held** — not that the server refuses forwarding. Two holder kinds seen in the wild: (a) half-open sshd sessions of a killed gateway (the server never noticed; kill my `sshd: <user>@notty` sessions), (b) a stray client that grabbed the freed port (an `adb` client auto-starting a server on 15037; visible in `ss -tlnp` — as your own process it IS killable). Root-held listeners show no pid in `ss -tlnp` — unfixable without root. `clean-tunnel-ports.ps1` automates the whole diagnosis + kill; prefer it over manual ssh.
+- **Without root, per-session client attribution is impossible**: the session's TCP socket belongs to the privileged sshd process, `ss -tnp` shows no pid for it, `/proc/<pid>/fd` and `/proc/<pid>/environ` of other processes are blocked (ptrace hardening). So "kill only sessions opened from THIS machine" cannot be implemented; the workable scope is "my `@notty` sessions" (tunnel-style; interactive shells are `@pts/*`, ssh clients running on the server appear as `ssh ...` commands, not `sshd:`).
+- **`denied by peer` that instantly recurs after cleanup = a respawner, not a stale holder.** Seen 2026-08-27: killing the adb holding 15037 was followed by a brand-new `adb -L tcp:15037 fork-server` within 1s. Root cause: another Claude Code session on the server had left a background watcher `until adb -P 15037 devices | grep -q '^<serial>.*device$'; do sleep 5; done`. Every `adb -P 15037 devices` client call auto-starts a local fork-server listening on 15037 — which blocks the gateway's tunnel, the watcher's own only path to the device: a self-sustaining deadlock (the device was connected all along). Diagnosis: `cat /proc/<adb-pid>/environ | tr '\0' '\n'` (own processes are readable) → `PWD=` showed the owning project dir and `AI_AGENT=claude-code` confirmed the session type; then `pgrep -u $USER -x sleep` + parent `args=` found the literal loop. Fix: kill the watcher bash (and its sleep child) **and** the fork-server in one pass — killing only adb just loses the race. After the gateway rebinds, `adb -P 15037 devices` server-side shows the devices, so the watcher's goal is achieved by the tunnel itself. Lesson: before blaming a "stray adb", check whether something on the server keeps calling `adb -P <port>` — look for `until adb`/`while adb` loops in `ps -u $USER -o pid,ppid,args`.
+- The gateway's built-in `killRemotePortHolders` (internal/tunnel/reverse.go) has the same blind spot: it greps `ss -tlnp` for `pid=`, which never matches root-held sshd listeners. It catches own-user stray holders (the adb case) only. Do not rely on it for the stale-sshd-session case; `clean-tunnel-ports.ps1` covers that.
 - Git note: this repo may auto-commit working changes between turns, so code edits can silently move from "modified" to a new commit (`git log --oneline`). If files you edited stop showing in `git status`, check the log before assuming the edits were lost — confirm by grepping the symbol on disk.

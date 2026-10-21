@@ -54,8 +54,11 @@ type ReverseTunnelConfig struct {
 	// positional name for reverse_tunnels[] entries when left empty).
 	Name string `yaml:"name" json:"name"`
 	// Kind selects behavior: "" / "tcp" (default) is a single remote_port ->
-	// target_host:local_port forward; "serial_ssh" auto-derives one forward per
-	// configured COM port from ports + ssh.base_port (like serial_ssh_tunnel).
+	// target_host:local_port reverse forward; "serial_ssh" auto-derives one
+	// forward per configured COM port from ports + ssh.base_port (like
+	// serial_ssh_tunnel); "local_forward" is the SSH -L direction — listen on
+	// bind_address:local_port on this machine and forward to target_host:remote_port
+	// dialed from the server side.
 	Kind             string `yaml:"kind"                    json:"kind"`
 	Host             string `yaml:"host"                    json:"host"`
 	Port             int    `yaml:"port"                    json:"port"`
